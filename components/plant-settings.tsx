@@ -176,18 +176,20 @@ function NotificationSettings() {
     
     if (permission === 'granted') {
        try {
-           const reg = await navigator.serviceWorker.ready;
-           reg.showNotification('הגיע הזמן להשקות! 💧', {
-              body: 'בדיקת התראה מוצלחת. מחכים לך באפליקציה!',
-              icon: '/icons/icon-192x192.png',
-              vibrate: [200, 100, 200]
-           } as NotificationOptions & { vibrate?: number[] });
+           const reg = await navigator.serviceWorker.getRegistration();
+           if (reg) {
+               await reg.showNotification('הגיע הזמן להשקות! 💧', {
+                  body: 'בדיקת התראה מוצלחת. מחכים לך באפליקציה!',
+                  icon: '/icons/icon-192x192.png',
+                  badge: '/icons/icon-72x72.png',
+                  vibrate: [200, 100, 200]
+               } as any);
+           } else {
+               alert("לא נמצא שירות רקע פעיל להתראות (נסה לרענן את האפליקציה).");
+           }
        } catch (e) {
            console.error("SW Notification failed", e);
-           // Fallback to purely browser notification API if SW fails
-           new Notification('הגיע הזמן להשקות! 💧', {
-              body: 'בדיקת התראה מוצלחת.'
-           });
+           alert("שגיאה בהקפצת ההתראה אל מחוץ לאפליקציה: " + String(e));
        }
     } else {
        alert('אנא אשר התראות בהגדרות הטלפון/דפדפן תחילה.');

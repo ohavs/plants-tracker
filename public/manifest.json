@@ -2,7 +2,7 @@
   "name": "מעקב צמחים | Plant Care Tracker",
   "short_name": "צמחים",
   "description": "אפליקציה לניהול ומעקב אחר הצמחים שלך",
-  "start_url": "/",
+  "start_url": "/?v=3",
   "display": "standalone",
   "orientation": "portrait",
   "dir": "rtl",
