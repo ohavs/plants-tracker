@@ -405,7 +405,7 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
         className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/5 px-4 py-2.5 w-full"
       >
         <Calendar className="h-3.5 w-3.5 text-white/30 shrink-0" />
-        <span className="text-xs text-white/40 font-medium flex-1 text-right">\u05ea\u05d0\u05e8\u05d9\u05da \u05e8\u05db\u05d9\u05e9\u05d4</span>
+        <span className="text-xs text-white/40 font-medium flex-1 text-right">תאריך רכישה</span>
         <span className={`text-sm font-semibold ${parsed ? 'text-white/80' : 'text-white/25'}`}>{displayLabel}</span>
       </button>
 
@@ -419,7 +419,7 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
           >
             {/* Year row */}
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">\u05e9\u05e0\u05d4</span>
+              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">שנה</span>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x" dir="ltr">
                 {years.map(y => (
                   <button key={y}
@@ -432,7 +432,7 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
             </div>
             {/* Month row */}
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">\u05d7\u05d5\u05d3\u05e9</span>
+              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">חודש</span>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x" dir="rtl">
                 {months.map((name, idx) => {
                   const mNum = idx + 1
@@ -448,7 +448,7 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
             </div>
             {/* Day row */}
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">\u05d9\u05d5\u05dd</span>
+              <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">יום</span>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x" dir="ltr">
                 {days.map(d => (
                   <button key={d}
@@ -461,7 +461,7 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
             </div>
             {parsed && (
               <button onClick={() => setOpen(false)} className="flex w-full items-center justify-center rounded-2xl py-2 text-xs font-semibold text-white/50 bg-white/5">
-                \u05e1\u05d2\u05d5\u05e8
+                סגור
               </button>
             )}
           </motion.div>

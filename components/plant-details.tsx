@@ -99,7 +99,7 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               >
                 <X className="w-4 h-4" />
               </button>
-              <h3 className="text-xl font-bold text-white mb-4 text-center mt-2">\u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d9\u05ea \u05d4\u05e9\u05e7\u05d9\u05d5\u05ea</h3>
+              <h3 className="text-xl font-bold text-white mb-4 text-center mt-2">היסטוריית השקיות</h3>
               {plant.wateringHistory?.length ? (
                 <>
                   <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
@@ -111,7 +111,7 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
                              <span className="text-white/90">{d.toLocaleDateString('he-IL')}</span>
                              <span className="text-white/40 text-xs">{d.toLocaleTimeString('he-IL', { hour: '2-digit', minute:'2-digit' })}</span>
                            </div>
-                           <span className="text-white/60 text-xs text-right mt-1">\u05d4\u05d5\u05e9\u05e7\u05d4 \u05e2&quot;\u05d9: {record.userName}</span>
+                           <span className="text-white/60 text-xs text-right mt-1">הושקה ע&quot;י: {record.userName}</span>
                         </div>
                       )
                     })}
@@ -121,11 +121,11 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
                     className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/25 bg-red-500/8 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
-                    \u05de\u05d7\u05e7 \u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d4
+                    מחק היסטוריה
                   </button>
                 </>
               ) : (
-                <p className="text-center text-white/50 text-sm py-8">\u05dc\u05d0 \u05ea\u05d5\u05e2\u05d3\u05d5 \u05d4\u05e9\u05e7\u05d9\u05d5\u05ea \u05e2\u05d3\u05d9\u05d9\u05df</p>
+                <p className="text-center text-white/50 text-sm py-8">לא תועדו השקיות עדיין</p>
               )}
             </motion.div>
           </motion.div>
