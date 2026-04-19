@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Droplets, History } from 'lucide-react'
+import { X, Droplets, History, Trash2, Calendar, AlertTriangle } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant } from '@/lib/plants-data'
 import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
@@ -13,7 +13,7 @@ interface PlantDetailsProps {
 }
 
 export default function PlantDetails({ plant: initialPlant, onClose }: PlantDetailsProps) {
-  const { plants, addWateringRecord, updateParam, users } = usePlantStore()
+  const { plants, addWateringRecord, updateParam, users, clearWateringHistory } = usePlantStore()
   // Always use live data from store so settings changes reflect immediately
   const plant = plants.find((p) => p.id === initialPlant.id) ?? initialPlant
 
@@ -21,6 +21,7 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
   const [isWatered, setIsWatered] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showUserSelect, setShowUserSelect] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   
   const buttonRef = useRef<HTMLButtonElement>(null)
   const rippleIdRef = useRef(0)
@@ -86,7 +87,7 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
             }}
           >
             <motion.div 
-              className="w-full max-w-[320px] bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 cursor-default shadow-2xl relative"
+              className="w-full max-w-[340px] bg-[#1a2a1e] rounded-3xl p-5 border border-white/10 cursor-default shadow-2xl relative"
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
@@ -98,25 +99,86 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               >
                 <X className="w-4 h-4" />
               </button>
-              <h3 className="text-xl font-bold text-white mb-4 text-center mt-2">היסטוריית השקיות</h3>
+              <h3 className="text-xl font-bold text-white mb-4 text-center mt-2">\u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d9\u05ea \u05d4\u05e9\u05e7\u05d9\u05d5\u05ea</h3>
               {plant.wateringHistory?.length ? (
-                <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
-                  {plant.wateringHistory.map((record, i) => {
-                    const d = new Date(record.date)
-                    return (
-                      <div key={i} className="flex flex-col gap-1 bg-white/5 rounded-xl p-3">
-                         <div className="flex justify-between items-center text-sm">
-                           <span className="text-white/90">{d.toLocaleDateString('he-IL')}</span>
-                           <span className="text-white/40 text-xs">{d.toLocaleTimeString('he-IL', { hour: '2-digit', minute:'2-digit' })}</span>
-                         </div>
-                         <span className="text-white/60 text-xs text-right mt-1">הושקה ע"י: {record.userName}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                <>
+                  <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
+                    {plant.wateringHistory.map((record, i) => {
+                      const d = new Date(record.date)
+                      return (
+                        <div key={i} className="flex flex-col gap-1 bg-white/5 rounded-xl p-3">
+                           <div className="flex justify-between items-center text-sm">
+                             <span className="text-white/90">{d.toLocaleDateString('he-IL')}</span>
+                             <span className="text-white/40 text-xs">{d.toLocaleTimeString('he-IL', { hour: '2-digit', minute:'2-digit' })}</span>
+                           </div>
+                           <span className="text-white/60 text-xs text-right mt-1">\u05d4\u05d5\u05e9\u05e7\u05d4 \u05e2&quot;\u05d9: {record.userName}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/25 bg-red-500/8 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    \u05de\u05d7\u05e7 \u05d4\u05d9\u05e1\u05d8\u05d5\u05e8\u05d9\u05d4
+                  </button>
+                </>
               ) : (
-                <p className="text-center text-white/50 text-sm py-8">לא תועדו השקיות עדיין נסו להשקות</p>
+                <p className="text-center text-white/50 text-sm py-8">\u05dc\u05d0 \u05ea\u05d5\u05e2\u05d3\u05d5 \u05d4\u05e9\u05e7\u05d9\u05d5\u05ea \u05e2\u05d3\u05d9\u05d9\u05df</p>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <motion.div
+            className="fixed inset-0 z-[90] flex items-center justify-center p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setShowDeleteConfirm(false)} />
+            <motion.div
+              className="relative z-10 w-full max-w-[320px] rounded-3xl bg-[#1a2a1e] border border-white/10 p-6 flex flex-col items-center gap-4 shadow-2xl"
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="h-7 w-7 text-red-400" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-white/90">מחיקת היסטוריה</h3>
+                <p className="text-sm text-white/45 mt-1 leading-relaxed">
+                  האם למחוק את כל היסטוריית ההשקיות
+                  של <span className="font-semibold text-white/70">{plant.name}</span>?
+                  <br /><span className="text-[11px] text-white/30">פעולה זו אינה ניתנת לביטול</span>
+                </p>
+              </div>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => {
+                    clearWateringHistory(plant.id)
+                    setShowDeleteConfirm(false)
+                    setShowHistory(false)
+                  }}
+                  className="flex-1 rounded-2xl bg-red-500 py-3 text-sm font-bold text-white"
+                >
+                  כן, מחק
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 rounded-2xl bg-white/10 py-3 text-sm font-semibold text-white/60"
+                >
+                  ביטול
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -262,6 +324,14 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               <p className="mt-1.5 text-sm text-white/50 text-center max-w-[300px] font-light leading-relaxed">
                 {plant.description}
               </p>
+              {plant.purchaseDate && (
+                <div className="mt-2 flex items-center gap-1.5 rounded-xl bg-white/5 border border-white/5 px-3 py-1">
+                  <Calendar className="h-3 w-3 text-white/30" />
+                  <span className="text-[11px] text-white/35 font-light">
+                    נרכש {new Date(plant.purchaseDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </span>
+                </div>
+              )}
             </motion.div>
 
             {/* Dynamic params grid — always 2 columns, last is full-width if odd */}
