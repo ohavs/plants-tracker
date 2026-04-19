@@ -432,14 +432,46 @@ function ParamRow({
             />
 
             {/* Value edit */}
-            <input
-              type="text"
-              value={param.value}
-              onChange={(e) => onValueChange(e.target.value)}
-              className="w-full rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm text-white font-semibold outline-none focus:border-white/25 text-right"
-              dir="rtl"
-              placeholder="ערך"
-            />
+            {param.label === 'תדירות השקיה' ? (
+              <div className="flex items-center gap-2 w-full rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm text-white font-semibold outline-none focus-within:border-white/25" dir="rtl">
+                <span className="text-white/70 whitespace-nowrap">פעם ב...</span>
+                <select 
+                  className="flex-1 bg-transparent outline-none appearance-none cursor-pointer text-right text-white"
+                  value={(() => {
+                    const v = param.value;
+                    if (v === 'פעם ביום') return 'יום';
+                    if (v === 'פעם ביומיים') return 'יומיים';
+                    if (v === 'פעם בשבוע') return 'שבוע';
+                    if (v.startsWith('פעם ב ')) return v.replace('פעם ב ', '');
+                    return 'שבוע';
+                  })()} 
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === 'יום') onValueChange('פעם ביום');
+                    else if (v === 'יומיים') onValueChange('פעם ביומיים');
+                    else if (v === 'שבוע') onValueChange('פעם בשבוע');
+                    else onValueChange(`פעם ב ${v}`);
+                  }}
+                >
+                  <option className="bg-[#1e1e1e]" value="יום">יום</option>
+                  <option className="bg-[#1e1e1e]" value="יומיים">יומיים</option>
+                  <option className="bg-[#1e1e1e]" value="3 ימים">3 ימים</option>
+                  <option className="bg-[#1e1e1e]" value="4 ימים">4 ימים</option>
+                  <option className="bg-[#1e1e1e]" value="5 ימים">5 ימים</option>
+                  <option className="bg-[#1e1e1e]" value="6 ימים">6 ימים</option>
+                  <option className="bg-[#1e1e1e]" value="שבוע">שבוע</option>
+                </select>
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={param.value}
+                onChange={(e) => onValueChange(e.target.value)}
+                className="w-full rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm text-white font-semibold outline-none focus:border-white/25 text-right"
+                dir="rtl"
+                placeholder="ערך"
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
