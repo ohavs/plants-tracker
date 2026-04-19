@@ -183,7 +183,7 @@ function NotificationSettings() {
     
     if (permission === 'granted') {
        try {
-           const reg = await navigator.serviceWorker.getRegistration();
+           const reg = await navigator.serviceWorker.ready;
            if (reg) {
                await reg.showNotification('הגיע הזמן להשקות! 💧', {
                   body: 'בדיקת התראה מוצלחת. מחכים לך באפליקציה!',
@@ -375,9 +375,10 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
   const [open, setOpen] = useState(false)
 
   const parsed = value ? new Date(value + 'T12:00:00') : null
-  const selDay   = parsed ? parsed.getDate() : null
-  const selMonth = parsed ? parsed.getMonth() + 1 : null
-  const selYear  = parsed ? parsed.getFullYear() : null
+  
+  const [lYear, setLYear] = useState<number | null>(parsed ? parsed.getFullYear() : null)
+  const [lMonth, setLMonth] = useState<number | null>(parsed ? parsed.getMonth() + 1 : null)
+  const [lDay, setLDay] = useState<number | null>(parsed ? parsed.getDate() : null)
 
   const currentYear = new Date().getFullYear()
   const years  = Array.from({ length: 10 }, (_, i) => currentYear - i)
@@ -386,11 +387,19 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
     'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'
   ]
   const daysInMonth = (m: number, y: number) => new Date(y, m, 0).getDate()
-  const days = Array.from({ length: selMonth && selYear ? daysInMonth(selMonth, selYear) : 31 }, (_, i) => i + 1)
+  const days = Array.from({ length: lMonth && lYear ? daysInMonth(lMonth, lYear) : 31 }, (_, i) => i + 1)
 
   const save = (d: number | null, m: number | null, y: number | null) => {
-    if (d && m && y) {
-      onChange(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
+    const finalD = d ?? lDay
+    const finalM = m ?? lMonth
+    const finalY = y ?? lYear
+    
+    if (d !== null) setLDay(d)
+    if (m !== null) setLMonth(m)
+    if (y !== null) setLYear(y)
+
+    if (finalD && finalM && finalY) {
+      onChange(`${finalY}-${String(finalM).padStart(2, '0')}-${String(finalD).padStart(2, '0')}`)
     }
   }
 
@@ -423,9 +432,9 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x" dir="ltr">
                 {years.map(y => (
                   <button key={y}
-                    onClick={() => save(selDay, selMonth, y)}
-                    className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-bold transition-all ${selYear === y ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                    style={selYear === y ? { backgroundColor: accentColor } : {}}
+                    onClick={() => save(null, null, y)}
+                    className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-bold transition-all ${lYear === y ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                    style={lYear === y ? { backgroundColor: accentColor } : {}}
                   >{y}</button>
                 ))}
               </div>
@@ -438,9 +447,9 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
                   const mNum = idx + 1
                   return (
                     <button key={mNum}
-                      onClick={() => save(selDay, mNum, selYear)}
-                      className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-bold transition-all ${selMonth === mNum ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                      style={selMonth === mNum ? { backgroundColor: accentColor } : {}}
+                      onClick={() => save(null, mNum, null)}
+                      className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-bold transition-all ${lMonth === mNum ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                      style={lMonth === mNum ? { backgroundColor: accentColor } : {}}
                     >{name}</button>
                   )
                 })}
@@ -452,14 +461,14 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 snap-x" dir="ltr">
                 {days.map(d => (
                   <button key={d}
-                    onClick={() => save(d, selMonth, selYear)}
-                    className={`snap-center flex-shrink-0 rounded-2xl px-3 py-2 text-sm font-bold transition-all ${selDay === d ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
-                    style={selDay === d ? { backgroundColor: accentColor } : {}}
+                    onClick={() => save(d, null, null)}
+                    className={`snap-center flex-shrink-0 rounded-2xl px-3 py-2 text-sm font-bold transition-all ${lDay === d ? 'scale-105 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                    style={lDay === d ? { backgroundColor: accentColor } : {}}
                   >{d}</button>
                 ))}
               </div>
             </div>
-            {parsed && (
+            {(lDay && lMonth && lYear) && (
               <button onClick={() => setOpen(false)} className="flex w-full items-center justify-center rounded-2xl py-2 text-xs font-semibold text-white/50 bg-white/5">
                 סגור
               </button>
