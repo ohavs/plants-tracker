@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Droplets, History } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant } from '@/lib/plants-data'
-import { usePlantStore } from '@/hooks/use-plant-store'
+import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
 interface PlantDetailsProps {
   plant: Plant
@@ -13,18 +13,20 @@ interface PlantDetailsProps {
 }
 
 export default function PlantDetails({ plant: initialPlant, onClose }: PlantDetailsProps) {
-  const { plants, addWateringRecord, updateParam } = usePlantStore()
+  const { plants, addWateringRecord, updateParam, users } = usePlantStore()
   // Always use live data from store so settings changes reflect immediately
   const plant = plants.find((p) => p.id === initialPlant.id) ?? initialPlant
 
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([])
   const [isWatered, setIsWatered] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [showUserSelect, setShowUserSelect] = useState(false)
   
   const buttonRef = useRef<HTMLButtonElement>(null)
   const rippleIdRef = useRef(0)
 
   const handleWaterClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Just save the ripple and open user select
     if (!buttonRef.current) return
     const rect = buttonRef.current.getBoundingClientRect()
     const newRipple = {
@@ -34,12 +36,27 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
     }
     setRipples((prev) => [...prev, newRipple])
     setTimeout(() => setRipples((prev) => prev.filter((r) => r.id !== newRipple.id)), 600)
+    
+    if (users.length === 0) {
+      // Fallback
+      confirmWatering("אנונימי", "guest")
+    } else {
+      setShowUserSelect(true)
+    }
+  }
+
+  const confirmWatering = (userName: string, userId: string) => {
     setIsWatered(true)
+    setShowUserSelect(false)
     setTimeout(() => setIsWatered(false), 2000)
 
     // Save history
     const now = new Date()
-    addWateringRecord(plant.id, now.toISOString())
+    addWateringRecord(plant.id, {
+       date: now.toISOString(),
+       userId,
+       userName
+    })
 
     // Update label to indicate watered today if param exists
     const lastWaterKey = params.find(p => p.key === 'lastWatered' || p.label.includes('השקיה אחרונה'))?.key
@@ -84,12 +101,15 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               <h3 className="text-xl font-bold text-white mb-4 text-center mt-2">היסטוריית השקיות</h3>
               {plant.wateringHistory?.length ? (
                 <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
-                  {plant.wateringHistory.map((dateStr, i) => {
-                    const d = new Date(dateStr)
+                  {plant.wateringHistory.map((record, i) => {
+                    const d = new Date(record.date)
                     return (
-                      <div key={i} className="flex justify-between items-center bg-white/5 rounded-xl p-3">
-                        <span className="text-white/90 text-sm">{d.toLocaleDateString('he-IL')}</span>
-                        <span className="text-white/40 text-xs">{d.toLocaleTimeString('he-IL', { hour: '2-digit', minute:'2-digit' })}</span>
+                      <div key={i} className="flex flex-col gap-1 bg-white/5 rounded-xl p-3">
+                         <div className="flex justify-between items-center text-sm">
+                           <span className="text-white/90">{d.toLocaleDateString('he-IL')}</span>
+                           <span className="text-white/40 text-xs">{d.toLocaleTimeString('he-IL', { hour: '2-digit', minute:'2-digit' })}</span>
+                         </div>
+                         <span className="text-white/60 text-xs text-right mt-1">הושקה ע"י: {record.userName}</span>
                       </div>
                     )
                   })}
@@ -100,6 +120,54 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+         {showUserSelect && (
+           <motion.div 
+            className="fixed inset-0 z-[80] flex flex-col items-center justify-center p-6 bg-black/60 backdrop-blur-sm cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowUserSelect(false)
+            }}
+          >
+            <motion.div 
+              className="w-full max-w-[320px] bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 cursor-default shadow-2xl relative flex flex-col items-center"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setShowUserSelect(false)}
+                className="absolute top-4 right-4 text-white/50 bg-white/10 p-1 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <h3 className="text-xl font-bold text-white mb-6 mt-3">מי משקה עכשיו? 💧</h3>
+              
+              <div className="grid grid-cols-2 gap-3 w-full max-h-[50vh] overflow-y-auto no-scrollbar pt-2 pb-4 px-1" dir="rtl">
+                 {users.map(u => (
+                    <motion.button 
+                       key={u.id}
+                       onClick={() => confirmWatering(u.name, u.id)}
+                       whileTap={{ scale: 0.95 }}
+                       className="rounded-2xl border border-white/5 p-4 flex flex-col items-center justify-center gap-2"
+                       style={{ backgroundColor: plant.accentColor }}
+                    >
+                       <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                          <span className="text-lg">👤</span>
+                       </div>
+                       <span className="text-white font-semibold text-sm">{u.name}</span>
+                    </motion.button>
+                 ))}
+              </div>
+            </motion.div>
+          </motion.div>
+         )}
       </AnimatePresence>
       <motion.div
         className="fixed inset-0 z-50 h-[100dvh]"

@@ -7,6 +7,12 @@ export interface PlantParam {
   icon: string // icon name string for serialization
 }
 
+export interface WateringRecord {
+  date: string
+  userId: string
+  userName: string
+}
+
 export interface Plant {
   id: string
   name: string
@@ -16,7 +22,7 @@ export interface Plant {
   description: string
   // Core params stored as structured list for dynamic rendering
   params: PlantParam[]
-  wateringHistory?: string[]
+  wateringHistory?: WateringRecord[]
 }
 
 // Icon map for serialized icon names
@@ -42,8 +48,8 @@ export const plants: Plant[] = [
     description: 'עשב תבלין ריחני — בסיס לפסטו ולסלטים ים תיכוניים',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעם בשבוע', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '15 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '22 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש מלאה', icon: 'sun' },
     ],
   },
@@ -56,8 +62,8 @@ export const plants: Plant[] = [
     description: 'צמח תבלין רענן וארומטי, מושלם לתה ולשתייה קרה',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעם בשבוע', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '14 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '21 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש חלקית', icon: 'sun' },
     ],
   },
@@ -70,8 +76,8 @@ export const plants: Plant[] = [
     description: 'ירק גינה קלאסי — פריך, מתוק ועסיסי',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעמיים בשבוע', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '17 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '20 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש מלאה', icon: 'sun' },
     ],
   },
@@ -84,8 +90,8 @@ export const plants: Plant[] = [
     description: 'תבלין ים תיכוני עם ניחוח חזק ועמיד',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעם בשבוע', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '14 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '21 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש מלאה', icon: 'sun' },
     ],
   },
@@ -98,8 +104,8 @@ export const plants: Plant[] = [
     description: 'זן דקורטיבי עם עלים סגולים ויפיפיים וטעם עדין',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעם בשבוע', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '15 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '22 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש מלאה', icon: 'sun' },
     ],
   },
@@ -112,8 +118,8 @@ export const plants: Plant[] = [
     description: 'צמח תבלין מסורתי — הבסיס לתערובת הזעתר הישראלית',
     params: [
       { key: 'wateringFrequency', label: 'תדירות השקיה', value: 'פעם בשבועיים', icon: 'clock' },
-      { key: 'lastWatered', label: 'השקיה אחרונה', value: '10 באפריל', icon: 'droplets' },
-      { key: 'nextWatering', label: 'השקיה הבאה', value: '24 באפריל', icon: 'droplets' },
+      
+      
       { key: 'sunlight', label: 'תאורה', value: 'שמש מלאה', icon: 'sun' },
     ],
   },

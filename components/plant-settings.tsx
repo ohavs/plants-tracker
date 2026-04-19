@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant, type PlantParam } from '@/lib/plants-data'
-import { usePlantStore } from '@/hooks/use-plant-store'
+import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
 interface PlantSettingsProps {
   onClose: () => void
@@ -146,6 +146,55 @@ function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant)
 
       <div className="flex justify-center mt-5 mb-1">
         <span className="text-[10px] text-white/12">Plant Care Tracker v0.1.0</span>
+      </div>
+
+      <div className="mt-6">
+         <UsersManager />
+      </div>
+    </div>
+  )
+}
+
+function UsersManager() {
+  const { users, addUser, removeUser } = usePlantStore()
+  const [newUserName, setNewUserName] = useState('')
+
+  const handleAdd = () => {
+    if (!newUserName.trim()) return
+    addUser(newUserName.trim())
+    setNewUserName('')
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="h-4 w-4 bg-white/20 rounded-full flex justify-center items-center">
+            <span className="text-[9px] text-white/60">👤</span>
+        </div>
+        <span className="text-xs text-white/35 font-medium tracking-wide">משתמשים</span>
+      </div>
+      
+      {users.map(u => (
+        <div key={u.id} className="flex items-center justify-between rounded-2xl bg-white/5 border border-white/5 p-3">
+           <span className="text-sm font-semibold text-white/90">{u.name}</span>
+           <button onClick={() => removeUser(u.id)} className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/5 transition-colors">
+              <Trash2 className="h-3.5 w-3.5 text-white/30" />
+           </button>
+        </div>
+      ))}
+      
+      <div className="flex gap-2 items-center rounded-2xl bg-white/5 border border-white/10 p-2">
+         <input 
+            type="text"
+            value={newUserName}
+            onChange={e => setNewUserName(e.target.value)}
+            placeholder="הוסף משתמש חדש..."
+            className="flex-1 bg-transparent px-3 py-1.5 text-sm text-white placeholder:text-white/25 outline-none text-right"
+            dir="rtl"
+         />
+         <button onClick={handleAdd} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 transition-colors">
+            <Plus className="h-4 w-4 text-white/70" />
+         </button>
       </div>
     </div>
   )
