@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell } from 'lucide-react'
+import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell, Send } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant, type PlantParam } from '@/lib/plants-data'
 import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
@@ -161,26 +161,58 @@ function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant)
 
 function NotificationSettings() {
   const { notifications, updateNotifications } = usePlantStore()
+  const timeStr = notifications.time || '09:00'
+  const [hr, min] = timeStr.split(':')
+
+  const handleTestNotification = async () => {
+    if (!('Notification' in window)) {
+        return alert('המכשיר או הדפדפן להפעיל התראות. נסה דרך האפליקציה המותקנת (PWA).')
+    }
+    
+    let permission = Notification.permission;
+    if (permission !== 'granted') {
+       permission = await Notification.requestPermission();
+    }
+    
+    if (permission === 'granted') {
+       try {
+           const reg = await navigator.serviceWorker.ready;
+           reg.showNotification('הגיע הזמן להשקות! 💧', {
+              body: 'בדיקת התראה מוצלחת. מחכים לך באפליקציה!',
+              icon: '/icons/icon-192x192.png',
+              vibrate: [200, 100, 200]
+           } as NotificationOptions & { vibrate?: number[] });
+       } catch (e) {
+           console.error("SW Notification failed", e);
+           // Fallback to purely browser notification API if SW fails
+           new Notification('הגיע הזמן להשקות! 💧', {
+              body: 'בדיקת התראה מוצלחת.'
+           });
+       }
+    } else {
+       alert('אנא אשר התראות בהגדרות הטלפון/דפדפן תחילה.');
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 mb-1">
-        <div className="h-4 w-4 bg-white/20 rounded-full flex justify-center items-center">
+        <div className="flex h-4 w-4 items-center justify-center rounded-full bg-white/20">
             <Bell className="h-[9px] w-[9px] text-white/60" />
         </div>
-        <span className="text-xs text-white/35 font-medium tracking-wide">התראות</span>
+        <span className="text-xs font-medium tracking-wide text-white/35">התראות מבוססות זמן</span>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/5 p-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-white/5 p-4">
          {/* Toggle */}
          <div className="flex items-center justify-between">
            <span className="text-sm font-semibold text-white/90">הפעל התראות השקיה</span>
            <button 
              onClick={() => updateNotifications({ enabled: !notifications.enabled })}
-             className={`w-11 h-6 rounded-full transition-colors relative ${notifications.enabled ? 'bg-emerald-500' : 'bg-white/20'}`}
+             className={`relative h-6 w-11 rounded-full transition-colors ${notifications.enabled ? 'bg-emerald-500' : 'bg-white/20'}`}
            >
              <motion.div 
-               className="w-4 h-4 bg-white rounded-full absolute top-1"
+               className="absolute top-1 h-4 w-4 rounded-full bg-white"
                animate={{ right: notifications.enabled ? '4px' : '24px' }}
                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
              />
@@ -193,35 +225,87 @@ function NotificationSettings() {
                  initial={{ opacity: 0, height: 0 }}
                  animate={{ opacity: 1, height: 'auto' }}
                  exit={{ opacity: 0, height: 0 }}
-                 className="flex flex-col gap-3 pt-3 mt-1 border-t border-white/10 overflow-hidden"
+                 className="mt-1 flex flex-col gap-5 overflow-hidden border-t border-white/10 pt-4"
                >
-                 <div className="flex items-center justify-between">
-                   <span className="text-xs text-white/50">שעת התראה ביום</span>
-                   <input 
-                     type="time" 
-                     value={notifications.time}
-                     onChange={(e) => updateNotifications({ time: e.target.value })}
-                     className="bg-white/10 rounded-lg px-2 py-1 text-sm text-white/90 outline-none"
-                   />
+                 {/* Custom Time Selection UI */}
+                 <div className="flex flex-col gap-2">
+                   <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-white/60 font-semibold">שעת התראה ביום</span>
+                      <span className="text-xl font-bold tracking-widest text-emerald-400">{hr}:{min}</span>
+                   </div>
+                   
+                   <div className="flex flex-col gap-1.5" dir="ltr">
+                      {/* Hours row */}
+                      <div className="flex items-center gap-2 px-1 pb-2 -mx-1 overflow-x-auto snap-x no-scrollbar">
+                        <span className="pr-1 text-[10px] font-bold uppercase tracking-wider text-white/20">HR</span>
+                        {Array.from({length: 24}).map((_, i) => {
+                          const h = i.toString().padStart(2, '0');
+                          const isSelected = h === hr;
+                          return (
+                             <button 
+                               key={`hr-${h}`}
+                               onClick={() => updateNotifications({ time: `${h}:${min}` })}
+                               className={`snap-center flex-shrink-0 cursor-pointer rounded-2xl px-4 py-2 text-[15px] font-bold transition-all ${isSelected ? 'scale-105 bg-emerald-500 text-white shadow-lg' : 'bg-white/5 border border-white/5 text-white/50 hover:bg-white/10'}`}
+                             >{h}</button>
+                          )
+                        })}
+                      </div>
+                      
+                      {/* Minutes row */}
+                      <div className="flex items-center gap-2 px-1 pb-1 -mx-1 overflow-x-auto snap-x no-scrollbar">
+                        <span className="pr-1 text-[10px] font-bold uppercase tracking-wider text-white/20">MIN</span>
+                        {Array.from({length: 12}).map((_, i) => {
+                          const m = (i * 5).toString().padStart(2, '0');
+                          const isSelected = m === min;
+                          return (
+                             <button 
+                               key={`min-${m}`}
+                               onClick={() => updateNotifications({ time: `${hr}:${m}` })}
+                               className={`snap-center flex-shrink-0 cursor-pointer rounded-2xl px-4 py-2 text-[15px] font-bold transition-all ${isSelected ? 'scale-105 bg-emerald-500 text-white shadow-lg' : 'bg-white/5 border border-white/5 text-white/50 hover:bg-white/10'}`}
+                             >{m}</button>
+                          )
+                        })}
+                      </div>
+                   </div>
                  </div>
                  
-                 <div className="flex items-center justify-between">
+                 {/* Snooze Options */}
+                 <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-white/10">
                    <div className="flex flex-col">
-                      <span className="text-xs text-white/50">מצב "נודניק"</span>
-                      <span className="text-[10px] text-white/30 font-light">במידה ולא סומן כהושקה</span>
+                      <span className="text-xs font-semibold text-white/60">מצב "נודניק"</span>
+                      <span className="text-[10px] font-light text-white/30">במידה ולא סומן כהושקה:</span>
                    </div>
-                   <select
-                     value={notifications.snoozeInterval}
-                     onChange={(e) => updateNotifications({ snoozeInterval: e.target.value })}
-                     className="bg-white/10 rounded-lg px-2 py-1.5 text-sm text-white/90 outline-none appearance-none cursor-pointer text-center"
-                     dir="rtl"
-                   >
-                     <option className="bg-[#1e1e1e]" value="שעה">כל שעה</option>
-                     <option className="bg-[#1e1e1e]" value="שלוש שעות">כל 3 שעות</option>
-                     <option className="bg-[#1e1e1e]" value="יום למחרת">תזכיר לי מחר</option>
-                     <option className="bg-[#1e1e1e]" value="ללא">ללא נודניק</option>
-                   </select>
+                   
+                   <div className="flex gap-2 pb-1 -mx-2 px-2 overflow-x-auto snap-x no-scrollbar" dir="rtl">
+                      {[
+                        { value: 'שעה', label: 'כל שעה' },
+                        { value: 'שלוש שעות', label: 'כל 3 שעות' },
+                        { value: 'יום למחרת', label: 'מחרת באותה שעה' },
+                        { value: 'ללא', label: 'כיבוי' }
+                      ].map(opt => (
+                         <button
+                            key={opt.value}
+                            onClick={() => updateNotifications({ snoozeInterval: opt.value })}
+                            className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-medium transition-all ${
+                               notifications.snoozeInterval === opt.value 
+                               ? 'scale-105 bg-white text-[#121212] shadow-lg' 
+                               : 'bg-white/10 text-white/50 hover:bg-white/15'
+                            }`}
+                         >
+                            {opt.label}
+                         </button>
+                      ))}
+                   </div>
                  </div>
+
+                 {/* Test Notification Button */}
+                 <button 
+                   onClick={handleTestNotification}
+                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/20"
+                 >
+                   <Send className="h-4 w-4" />
+                   שלח התראת ניסיון לטלפון 
+                 </button>
                </motion.div>
             )}
          </AnimatePresence>
