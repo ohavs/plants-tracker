@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell, Send } from 'lucide-react'
+import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell, Send, Calendar, AlertTriangle } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant, type PlantParam } from '@/lib/plants-data'
 import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
@@ -127,7 +127,14 @@ function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant)
           </div>
           <div className="flex-1 min-w-0 text-right">
             <h3 className="text-base font-semibold text-white/90 truncate">{plant.name}</h3>
-            <p className="text-xs text-white/35 font-light truncate mt-0.5">{plant.description}</p>
+            {plant.purchaseDate ? (
+              <p className="text-xs text-white/35 font-light mt-0.5 flex items-center justify-end gap-1">
+                <Calendar className="h-2.5 w-2.5" />
+                נרכש {new Date(plant.purchaseDate).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            ) : (
+              <p className="text-xs text-white/20 font-light truncate mt-0.5">{plant.description}</p>
+            )}
           </div>
           <ChevronLeft className="h-4 w-4 text-white/25 shrink-0" />
         </motion.button>
@@ -365,12 +372,13 @@ function UsersManager() {
    Per-plant param editor
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function PlantParamEditor({ plant }: { plant: Plant }) {
-  const { updateParam, updateParamLabel, updateParamIcon, addParam, removeParam } = usePlantStore()
+  const { updateParam, updateParamLabel, updateParamIcon, addParam, removeParam, clearWateringHistory, updatePurchaseDate } = usePlantStore()
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newValue, setNewValue] = useState('')
   const [newIcon, setNewIcon] = useState(DEFAULT_PARAM_ICON)
+  const [showDeleteHistoryDialog, setShowDeleteHistoryDialog] = useState(false)
 
   const handleAddParam = () => {
     if (!newLabel.trim() || !newValue.trim()) return
@@ -384,12 +392,25 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
 
   return (
     <div className="px-5 pb-10 safe-area-bottom flex flex-col gap-4">
-      {/* Plant thumbnail */}
-      <div className="flex flex-col items-center py-2">
+      {/* Plant thumbnail + purchase date */}
+      <div className="flex flex-col items-center py-2 gap-2">
         <div className="h-24 w-24 mb-1 flex items-center justify-center">
           <Image src={plant.image} alt={plant.name} width={96} height={96} className="object-contain w-full h-full" sizes="96px" />
         </div>
         <p className="text-xs text-white/35 font-light text-center max-w-[240px]">{plant.description}</p>
+
+        {/* Purchase date row */}
+        <div className="flex items-center gap-2 rounded-2xl bg-white/5 border border-white/5 px-4 py-2.5 w-full mt-1">
+          <Calendar className="h-3.5 w-3.5 text-white/30 shrink-0" />
+          <span className="text-xs text-white/40 font-medium flex-1 text-right">תאריך רכישה</span>
+          <input
+            type="date"
+            value={plant.purchaseDate || ''}
+            onChange={e => updatePurchaseDate(plant.id, e.target.value)}
+            className="bg-transparent text-sm font-semibold text-white/80 outline-none cursor-pointer text-right"
+            style={{ colorScheme: 'dark' }}
+          />
+        </div>
       </div>
 
       {/* Params list */}
@@ -489,6 +510,75 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
             <Plus className="h-4 w-4" />
             <span className="text-sm font-medium">הוסף פרמטר</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Delete watering history */}
+      {(plant.wateringHistory?.length ?? 0) > 0 && (
+        <button
+          onClick={() => setShowDeleteHistoryDialog(true)}
+          className="flex items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+        >
+          <Trash2 className="h-4 w-4" />
+          מחק היסטוריית השקיות
+        </button>
+      )}
+
+      {/* Confirmation Dialog */}
+      <AnimatePresence>
+        {showDeleteHistoryDialog && (
+          <motion.div
+            className="fixed inset-0 z-[60] flex items-end justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Backdrop */}
+            <motion.div
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              onClick={() => setShowDeleteHistoryDialog(false)}
+            />
+            {/* Dialog card */}
+            <motion.div
+              className="relative z-10 w-full max-w-[480px] mx-auto mb-6 px-4"
+              initial={{ y: 60, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 40, opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            >
+              <div className="rounded-3xl bg-[#1c2a1e] border border-white/10 p-6 flex flex-col items-center gap-4 shadow-2xl">
+                {/* Icon */}
+                <div className="h-14 w-14 rounded-2xl bg-red-500/10 flex items-center justify-center">
+                  <AlertTriangle className="h-7 w-7 text-red-400" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-bold text-white/90">מחיקת היסטוריה</h3>
+                  <p className="text-sm text-white/45 mt-1 leading-relaxed">
+                    האם למחוק את כל היסטוריית ההשקיות
+                    של <span className="font-semibold text-white/70">{plant.name}</span>?
+                    <br />פעולה זו אינה ניתנת לביטול.
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={() => {
+                      clearWateringHistory(plant.id)
+                      setShowDeleteHistoryDialog(false)
+                    }}
+                    className="flex-1 rounded-2xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg"
+                  >
+                    כן, מחק הכל
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteHistoryDialog(false)}
+                    className="flex-1 rounded-2xl bg-white/10 py-3 text-sm font-semibold text-white/60"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

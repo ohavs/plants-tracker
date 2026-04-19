@@ -13,7 +13,8 @@ export type AppUser = {
 function mergePlantParams(
   plant: Plant,
   overrides: Record<string, PlantParam[]>,
-  history: Record<string, WateringRecord[]>
+  history: Record<string, WateringRecord[]>,
+  purchaseDates: Record<string, string>
 ) {
   const storedParams = overrides[plant.id]
   const storedHistory = history[plant.id] || []
@@ -21,11 +22,13 @@ function mergePlantParams(
     ...plant,
     params: storedParams || plant.params,
     wateringHistory: storedHistory,
+    purchaseDate: purchaseDates[plant.id] || plant.purchaseDate,
   }
 }
 
 let globalOverrides: Record<string, PlantParam[]> = {}
 let globalHistory: Record<string, WateringRecord[]> = {}
+let globalPurchaseDates: Record<string, string> = {}
 let globalUsers: AppUser[] = []
 let globalHydrated = false
 let globalNotifications = {
@@ -69,6 +72,7 @@ export function usePlantStore() {
           const data = snap.data()
           globalOverrides = data.overrides || {}
           globalHistory = data.history || {}
+          globalPurchaseDates = data.purchaseDates || {}
         }
         globalHydrated = true
         notifyAll()
@@ -84,16 +88,18 @@ export function usePlantStore() {
     }
   }, [])
 
-  const plants = basePlants.map((p) => mergePlantParams(p, globalOverrides, globalHistory))
+  const plants = basePlants.map((p) => mergePlantParams(p, globalOverrides, globalHistory, globalPurchaseDates))
 
-  const updateFirebaseDoc = async (newOverrides: any, newHistory: any) => {
+  const updateFirebaseDoc = async (newOverrides: any, newHistory: any, newPurchaseDates?: any) => {
     try {
       globalOverrides = newOverrides
       globalHistory = newHistory
+      if (newPurchaseDates !== undefined) globalPurchaseDates = newPurchaseDates
       notifyAll()
       await setDoc(doc(db, 'appData', 'plants'), {
         overrides: newOverrides,
-        history: newHistory
+        history: newHistory,
+        purchaseDates: newPurchaseDates ?? globalPurchaseDates
       }, { merge: true })
     } catch (e) {
        console.error("Error updating firebase", e)
@@ -157,6 +163,16 @@ export function usePlantStore() {
     updateFirebaseDoc(globalOverrides, nextHistory)
   }, [])
 
+  const clearWateringHistory = useCallback((plantId: string) => {
+    const nextHistory = { ...globalHistory, [plantId]: [] }
+    updateFirebaseDoc(globalOverrides, nextHistory)
+  }, [])
+
+  const updatePurchaseDate = useCallback((plantId: string, date: string) => {
+    const next = { ...globalPurchaseDates, [plantId]: date }
+    updateFirebaseDoc(globalOverrides, globalHistory, next)
+  }, [])
+
   const addUser = async (name: string) => {
     const newUser = { id: crypto.randomUUID(), name }
     const nextUsers = [...globalUsers, newUser]
@@ -193,5 +209,7 @@ export function usePlantStore() {
     addParam,
     removeParam,
     addWateringRecord,
+    clearWateringHistory,
+    updatePurchaseDate,
   }
 }

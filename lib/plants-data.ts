@@ -20,6 +20,7 @@ export interface Plant {
   backgroundImage: string
   accentColor: string
   description: string
+  purchaseDate?: string // ISO date string, e.g. '2024-03-15'
   // Core params stored as structured list for dynamic rendering
   params: PlantParam[]
   wateringHistory?: WateringRecord[]
