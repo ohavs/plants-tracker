@@ -24,47 +24,73 @@ function mergePlantParams(
   }
 }
 
+let globalOverrides: Record<string, PlantParam[]> = {}
+let globalHistory: Record<string, WateringRecord[]> = {}
+let globalUsers: AppUser[] = []
+let globalHydrated = false
+let globalNotifications = {
+  enabled: false,
+  time: '09:00',
+  snoozeInterval: 'שעה',
+}
+
+const listeners = new Set<() => void>()
+let isInitialized = false
+
+function notifyAll() {
+  listeners.forEach(l => l())
+}
+
 export function usePlantStore() {
-  const [overrides, setOverrides] = useState<Record<string, PlantParam[]>>({})
-  const [history, setHistory] = useState<Record<string, WateringRecord[]>>({})
-  const [users, setUsers] = useState<AppUser[]>([])
-  const [hydrated, setHydrated] = useState(false)
+  const [, forceUpdate] = useState({})
 
-  // Listen to Users
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'general'), (snap) => {
-      if (snap.exists() && snap.data().users) {
-        setUsers(snap.data().users)
-      } else {
-        setUsers([])
-      }
-    }, (error) => {
-      console.warn("Firestore settings read error:", error)
-    })
-    return () => unsub()
+    const notify = () => forceUpdate({})
+    listeners.add(notify)
+
+    if (!isInitialized) {
+      isInitialized = true
+      
+      onSnapshot(doc(db, 'settings', 'general'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data()
+          if (data.users) globalUsers = data.users
+          if (data.notifications) globalNotifications = { ...globalNotifications, ...data.notifications }
+        } else {
+          globalUsers = []
+        }
+        notifyAll()
+      }, (error) => {
+        console.warn("Firestore settings read error:", error)
+      })
+
+      onSnapshot(doc(db, 'appData', 'plants'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data()
+          globalOverrides = data.overrides || {}
+          globalHistory = data.history || {}
+        }
+        globalHydrated = true
+        notifyAll()
+      }, (error) => {
+        console.warn("Firestore appData read error:", error)
+        globalHydrated = true
+        notifyAll()
+      })
+    }
+    
+    return () => {
+      listeners.delete(notify)
+    }
   }, [])
 
-  // Listen to Plant Data
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'appData', 'plants'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data()
-        setOverrides(data.overrides || {})
-        setHistory(data.history || {})
-      }
-      setHydrated(true)
-    }, (error) => {
-      console.warn("Firestore appData read error:", error)
-      setHydrated(true) // Still hydrate to show base plants
-    })
-    return () => unsub()
-  }, [])
+  const plants = basePlants.map((p) => mergePlantParams(p, globalOverrides, globalHistory))
 
-  const plants = basePlants.map((p) => mergePlantParams(p, overrides, history))
-
-  // Update Firestore helper
   const updateFirebaseDoc = async (newOverrides: any, newHistory: any) => {
     try {
+      globalOverrides = newOverrides
+      globalHistory = newHistory
+      notifyAll()
       await setDoc(doc(db, 'appData', 'plants'), {
         overrides: newOverrides,
         history: newHistory
@@ -74,106 +100,92 @@ export function usePlantStore() {
     }
   }
 
-  // Set all params for a plant
   const setPlantParams = useCallback((plantId: string, params: PlantParam[]) => {
-    setOverrides((prev) => {
-      const next = { ...prev, [plantId]: params }
-      updateFirebaseDoc(next, history)
-      return next
-    })
-  }, [history])
+    const nextOverrides = { ...globalOverrides, [plantId]: params }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
-  // Update single param
   const updateParam = useCallback((plantId: string, key: string, value: string) => {
-    setOverrides((prev) => {
-      const plant = basePlants.find((p) => p.id === plantId)
-      if (!plant) return prev
-      const current = prev[plantId] ?? plant.params
-      const next = current.map((p) => (p.key === key ? { ...p, value } : p))
-      const nextOverrides = { ...prev, [plantId]: next }
-      updateFirebaseDoc(nextOverrides, history)
-      return nextOverrides
-    })
-  }, [history])
+    const plant = basePlants.find((p) => p.id === plantId)
+    if (!plant) return
+    const current = globalOverrides[plantId] ?? plant.params
+    const next = current.map((p) => (p.key === key ? { ...p, value } : p))
+    const nextOverrides = { ...globalOverrides, [plantId]: next }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
   const updateParamLabel = useCallback((plantId: string, key: string, label: string) => {
-     setOverrides((prev) => {
-      const plant = basePlants.find((p) => p.id === plantId)
-      if (!plant) return prev
-      const current = prev[plantId] ?? plant.params
-      const next = current.map((p) => (p.key === key ? { ...p, label } : p))
-      const nextOverrides = { ...prev, [plantId]: next }
-      updateFirebaseDoc(nextOverrides, history)
-      return nextOverrides
-    })
-  }, [history])
+    const plant = basePlants.find((p) => p.id === plantId)
+    if (!plant) return
+    const current = globalOverrides[plantId] ?? plant.params
+    const next = current.map((p) => (p.key === key ? { ...p, label } : p))
+    const nextOverrides = { ...globalOverrides, [plantId]: next }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
   const updateParamIcon = useCallback((plantId: string, key: string, icon: string) => {
-    setOverrides((prev) => {
-      const plant = basePlants.find((p) => p.id === plantId)
-      if (!plant) return prev
-      const current = prev[plantId] ?? plant.params
-      const next = current.map((p) => (p.key === key ? { ...p, icon } : p))
-      const nextOverrides = { ...prev, [plantId]: next }
-      updateFirebaseDoc(nextOverrides, history)
-      return nextOverrides
-    })
-  }, [history])
+    const plant = basePlants.find((p) => p.id === plantId)
+    if (!plant) return
+    const current = globalOverrides[plantId] ?? plant.params
+    const next = current.map((p) => (p.key === key ? { ...p, icon } : p))
+    const nextOverrides = { ...globalOverrides, [plantId]: next }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
   const addParam = useCallback((plantId: string, param: PlantParam) => {
-    setOverrides((prev) => {
-      const plant = basePlants.find((p) => p.id === plantId)
-      if (!plant) return prev
-      const current = prev[plantId] ?? plant.params
-      const next = [...current, param]
-      const nextOverrides = { ...prev, [plantId]: next }
-      updateFirebaseDoc(nextOverrides, history)
-      return nextOverrides
-    })
-  }, [history])
+    const plant = basePlants.find((p) => p.id === plantId)
+    if (!plant) return
+    const current = globalOverrides[plantId] ?? plant.params
+    const next = [...current, param]
+    const nextOverrides = { ...globalOverrides, [plantId]: next }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
   const removeParam = useCallback((plantId: string, key: string) => {
-    setOverrides((prev) => {
-      const plant = basePlants.find((p) => p.id === plantId)
-      if (!plant) return prev
-      const current = prev[plantId] ?? plant.params
-      const next = current.filter((p) => p.key !== key)
-      const nextOverrides = { ...prev, [plantId]: next }
-      updateFirebaseDoc(nextOverrides, history)
-      return nextOverrides
-    })
-  }, [history])
+    const plant = basePlants.find((p) => p.id === plantId)
+    if (!plant) return
+    const current = globalOverrides[plantId] ?? plant.params
+    const next = current.filter((p) => p.key !== key)
+    const nextOverrides = { ...globalOverrides, [plantId]: next }
+    updateFirebaseDoc(nextOverrides, globalHistory)
+  }, [])
 
   const addWateringRecord = useCallback((plantId: string, record: WateringRecord) => {
-    setHistory((prev) => {
-      const current = prev[plantId] || []
-      const next = [record, ...current]
-      const nextObj = { ...prev, [plantId]: next }
-      updateFirebaseDoc(overrides, nextObj)
-      return nextObj
-    })
-  }, [overrides])
+    const current = globalHistory[plantId] || []
+    const next = [record, ...current]
+    const nextHistory = { ...globalHistory, [plantId]: next }
+    updateFirebaseDoc(globalOverrides, nextHistory)
+  }, [])
 
-  // User management
   const addUser = async (name: string) => {
     const newUser = { id: crypto.randomUUID(), name }
-    const nextUsers = [...users, newUser]
-    setUsers(nextUsers)
+    const nextUsers = [...globalUsers, newUser]
+    globalUsers = nextUsers
+    notifyAll()
     await setDoc(doc(db, 'settings', 'general'), { users: nextUsers }, { merge: true })
   }
 
   const removeUser = async (id: string) => {
-    const nextUsers = users.filter(u => u.id !== id)
-    setUsers(nextUsers)
+    const nextUsers = globalUsers.filter(u => u.id !== id)
+    globalUsers = nextUsers
+    notifyAll()
     await setDoc(doc(db, 'settings', 'general'), { users: nextUsers }, { merge: true })
+  }
+
+  const updateNotifications = async (notifs: Partial<typeof globalNotifications>) => {
+    globalNotifications = { ...globalNotifications, ...notifs }
+    notifyAll()
+    await setDoc(doc(db, 'settings', 'general'), { notifications: globalNotifications }, { merge: true })
   }
 
   return {
     plants,
-    hydrated,
-    users,
+    hydrated: globalHydrated,
+    users: globalUsers,
+    notifications: globalNotifications,
     addUser,
     removeUser,
+    updateNotifications,
     setPlantParams,
     updateParam,
     updateParamLabel,

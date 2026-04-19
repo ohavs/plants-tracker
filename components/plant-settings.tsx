@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil } from 'lucide-react'
+import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell } from 'lucide-react'
 import { PARAM_ICONS, DEFAULT_PARAM_ICON, type Plant, type PlantParam } from '@/lib/plants-data'
 import { usePlantStore, type AppUser } from '@/hooks/use-plant-store'
 
@@ -148,8 +148,83 @@ function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant)
         <span className="text-[10px] text-white/12">Plant Care Tracker v0.1.0</span>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-4 border-t border-white/10 pt-4">
          <UsersManager />
+      </div>
+
+      <div className="mt-4 border-t border-white/10 pt-4">
+         <NotificationSettings />
+      </div>
+    </div>
+  )
+}
+
+function NotificationSettings() {
+  const { notifications, updateNotifications } = usePlantStore()
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 mb-1">
+        <div className="h-4 w-4 bg-white/20 rounded-full flex justify-center items-center">
+            <Bell className="h-[9px] w-[9px] text-white/60" />
+        </div>
+        <span className="text-xs text-white/35 font-medium tracking-wide">התראות</span>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl bg-white/5 border border-white/5 p-4">
+         {/* Toggle */}
+         <div className="flex items-center justify-between">
+           <span className="text-sm font-semibold text-white/90">הפעל התראות השקיה</span>
+           <button 
+             onClick={() => updateNotifications({ enabled: !notifications.enabled })}
+             className={`w-11 h-6 rounded-full transition-colors relative ${notifications.enabled ? 'bg-emerald-500' : 'bg-white/20'}`}
+           >
+             <motion.div 
+               className="w-4 h-4 bg-white rounded-full absolute top-1"
+               animate={{ right: notifications.enabled ? '4px' : '24px' }}
+               transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+             />
+           </button>
+         </div>
+
+         <AnimatePresence>
+            {notifications.enabled && (
+               <motion.div 
+                 initial={{ opacity: 0, height: 0 }}
+                 animate={{ opacity: 1, height: 'auto' }}
+                 exit={{ opacity: 0, height: 0 }}
+                 className="flex flex-col gap-3 pt-3 mt-1 border-t border-white/10 overflow-hidden"
+               >
+                 <div className="flex items-center justify-between">
+                   <span className="text-xs text-white/50">שעת התראה ביום</span>
+                   <input 
+                     type="time" 
+                     value={notifications.time}
+                     onChange={(e) => updateNotifications({ time: e.target.value })}
+                     className="bg-white/10 rounded-lg px-2 py-1 text-sm text-white/90 outline-none"
+                   />
+                 </div>
+                 
+                 <div className="flex items-center justify-between">
+                   <div className="flex flex-col">
+                      <span className="text-xs text-white/50">מצב "נודניק"</span>
+                      <span className="text-[10px] text-white/30 font-light">במידה ולא סומן כהושקה</span>
+                   </div>
+                   <select
+                     value={notifications.snoozeInterval}
+                     onChange={(e) => updateNotifications({ snoozeInterval: e.target.value })}
+                     className="bg-white/10 rounded-lg px-2 py-1.5 text-sm text-white/90 outline-none appearance-none cursor-pointer text-center"
+                     dir="rtl"
+                   >
+                     <option className="bg-[#1e1e1e]" value="שעה">כל שעה</option>
+                     <option className="bg-[#1e1e1e]" value="שלוש שעות">כל 3 שעות</option>
+                     <option className="bg-[#1e1e1e]" value="יום למחרת">תזכיר לי מחר</option>
+                     <option className="bg-[#1e1e1e]" value="ללא">ללא נודניק</option>
+                   </select>
+                 </div>
+               </motion.div>
+            )}
+         </AnimatePresence>
       </div>
     </div>
   )
@@ -433,34 +508,42 @@ function ParamRow({
 
             {/* Value edit */}
             {param.label === 'תדירות השקיה' ? (
-              <div className="flex items-center gap-2 w-full rounded-xl bg-white/8 border border-white/10 px-3 py-2 text-sm text-white font-semibold outline-none focus-within:border-white/25" dir="rtl">
-                <span className="text-white/70 whitespace-nowrap">פעם ב...</span>
-                <select 
-                  className="flex-1 bg-transparent outline-none appearance-none cursor-pointer text-right text-white"
-                  value={(() => {
-                    const v = param.value;
-                    if (v === 'פעם ביום') return 'יום';
-                    if (v === 'פעם ביומיים') return 'יומיים';
-                    if (v === 'פעם בשבוע') return 'שבוע';
-                    if (v.startsWith('פעם ב ')) return v.replace('פעם ב ', '');
-                    return 'שבוע';
-                  })()} 
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === 'יום') onValueChange('פעם ביום');
-                    else if (v === 'יומיים') onValueChange('פעם ביומיים');
-                    else if (v === 'שבוע') onValueChange('פעם בשבוע');
-                    else onValueChange(`פעם ב ${v}`);
-                  }}
-                >
-                  <option className="bg-[#1e1e1e]" value="יום">יום</option>
-                  <option className="bg-[#1e1e1e]" value="יומיים">יומיים</option>
-                  <option className="bg-[#1e1e1e]" value="3 ימים">3 ימים</option>
-                  <option className="bg-[#1e1e1e]" value="4 ימים">4 ימים</option>
-                  <option className="bg-[#1e1e1e]" value="5 ימים">5 ימים</option>
-                  <option className="bg-[#1e1e1e]" value="6 ימים">6 ימים</option>
-                  <option className="bg-[#1e1e1e]" value="שבוע">שבוע</option>
-                </select>
+              <div className="flex flex-col gap-2 w-full pt-1" dir="rtl">
+                <span className="text-white/70 text-sm font-semibold pr-2">פעם ב...</span>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 -mx-2 px-2 snap-x">
+                  {[
+                    { value: 'יום', label: 'יום' },
+                    { value: 'יומיים', label: 'יומיים' },
+                    { value: '3 ימים', label: '3 ימים' },
+                    { value: '4 ימים', label: '4 ימים' },
+                    { value: '5 ימים', label: '5 ימים' },
+                    { value: '6 ימים', label: '6 ימים' },
+                    { value: 'שבוע', label: 'שבוע' }
+                  ].map(opt => {
+                    const isSelected = 
+                       param.value === `פעם ב${opt.value === 'שבוע' ? 'שבוע' : ' ' + opt.value}` ||
+                       (param.value === 'פעם בשבוע' && opt.value === 'שבוע') ||
+                       (param.value === 'פעם ביום' && opt.value === 'יום') ||
+                       (param.value === 'פעם ביומיים' && opt.value === 'יומיים');
+                       
+                    return (
+                      <button
+                         key={opt.value}
+                         className={`snap-center px-4 py-2 flex-shrink-0 rounded-2xl text-sm font-medium transition-all ${
+                           isSelected ? 'bg-white text-[#121212] shadow-lg scale-105' : 'bg-white/10 text-white/50 hover:bg-white/15'
+                         }`}
+                         onClick={() => {
+                            if (opt.value === 'יום') onValueChange('פעם ביום');
+                            else if (opt.value === 'יומיים') onValueChange('פעם ביומיים');
+                            else if (opt.value === 'שבוע') onValueChange('פעם בשבוע');
+                            else onValueChange(`פעם ב ${opt.value}`);
+                         }}
+                      >
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             ) : (
               <input
