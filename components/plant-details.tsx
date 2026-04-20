@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Droplets, History, Trash2, Calendar, AlertTriangle } from 'lucide-react'
@@ -22,11 +22,38 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
   const [showHistory, setShowHistory] = useState(false)
   const [showUserSelect, setShowUserSelect] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [now, setNow] = useState(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(timer)
+  }, [])
   
   const buttonRef = useRef<HTMLButtonElement>(null)
   const rippleIdRef = useRef(0)
 
+  // Cooldown logic (8 hours)
+  const lastWateringDate = plant.wateringHistory?.reduce((max, record) => {
+    if (!max) return record.date
+    return new Date(record.date).getTime() > new Date(max).getTime() ? record.date : max
+  }, plant.wateringHistory?.[0]?.date)
+
+  let isCoolingDown = false
+  let timeRemaining = ""
+  if (lastWateringDate) {
+    const diff = now - new Date(lastWateringDate).getTime()
+    const hours = diff / (1000 * 60 * 60)
+    if (hours < 8) {
+      isCoolingDown = true
+      const msLeft = 8 * 60 * 60 * 1000 - diff
+      const hrLeft = Math.floor(msLeft / (1000 * 60 * 60))
+      const minLeft = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60))
+      timeRemaining = hrLeft > 0 ? `${hrLeft}ש' ו-${minLeft}דק'` : `${minLeft} דק'`
+    }
+  }
+
   const handleWaterClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (isCoolingDown || isWatered) return
     // Just save the ripple and open user select
     if (!buttonRef.current) return
     const rect = buttonRef.current.getBoundingClientRect()
@@ -395,16 +422,17 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               <motion.button
                 ref={buttonRef}
                 onClick={handleWaterClick}
-                className="relative w-full overflow-hidden rounded-2xl py-4 text-base font-semibold flex-1"
+                className={`relative w-full overflow-hidden rounded-2xl py-4 text-base font-semibold flex-1 ${isCoolingDown ? 'opacity-60 cursor-not-allowed' : ''}`}
                 style={{
                   backgroundColor: isWatered ? 'oklch(0.5 0.12 200)' : plant.accentColor,
                 }}
-                whileTap={{ scale: 0.97 }}
+                whileTap={isCoolingDown ? {} : { scale: 0.97 }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
+                disabled={isCoolingDown || isWatered}
               >
-                {ripples.map((ripple) => (
+                {!isCoolingDown && ripples.map((ripple) => (
                   <span
                     key={ripple.id}
                     className="ripple-effect"
@@ -413,7 +441,13 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
                 ))}
                 <span className="relative z-10 flex items-center justify-center gap-2 text-white">
                   <Droplets className="h-5 w-5" />
-                  {isWatered ? 'הושקה בהצלחה! 💧' : 'השקתי'}
+                  {isWatered ? (
+                    'הושקה בהצלחה! 💧'
+                  ) : isCoolingDown ? (
+                    `השקיה הבאה בעוד ${timeRemaining}`
+                  ) : (
+                    'השקתי'
+                  )}
                 </span>
               </motion.button>
 

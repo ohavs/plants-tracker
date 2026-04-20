@@ -159,7 +159,7 @@ export default function PlantCarousel() {
                   transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                   className="absolute carousel-plant-container"
                   style={{ cursor: 'pointer', transform: 'translateZ(0)', willChange: 'transform' }}
-                  onClick={handlePlantTap}
+                  onTap={handlePlantTap}
                   whileTap={{ scale: 0.95 }}
                 >
                   <img
