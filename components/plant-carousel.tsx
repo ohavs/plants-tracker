@@ -228,6 +228,7 @@ export default function PlantCarousel() {
           <PlantDetails
             plant={selectedPlant}
             onClose={() => setSelectedPlant(null)}
+            onChangeIndex={(idx) => setCurrentIndex(idx)}
           />
         )}
       </AnimatePresence>
