@@ -12,18 +12,13 @@ import { PanInfo } from 'framer-motion'
 interface PlantDetailsProps {
   plant: Plant
   onClose: () => void
-  onChangeIndex?: (index: number) => void
 }
 
-export default function PlantDetails({ plant: initialPlant, onClose, onChangeIndex }: PlantDetailsProps) {
+export default function PlantDetails({ plant: initialPlant, onClose }: PlantDetailsProps) {
   const { plants, addWateringRecord, updateParam, users, clearWateringHistory } = usePlantStore()
   
-  const initialIndex = plants.findIndex((p) => p.id === initialPlant.id)
-  const [internalCurrentIndex, setInternalCurrentIndex] = useState(initialIndex >= 0 ? initialIndex : 0)
-  const [direction, setDirection] = useState(0)
-
-  // Always use live data from internal index to support swiping
-  const plant = plants[internalCurrentIndex] ?? initialPlant
+  // Always use live data from store so settings changes reflect immediately
+  const plant = plants.find((p) => p.id === initialPlant.id) ?? initialPlant
 
   const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([])
   const [isWatered, setIsWatered] = useState(false)
@@ -82,23 +77,9 @@ export default function PlantDetails({ plant: initialPlant, onClose, onChangeInd
   }
 
   const handleDragEnd = (_: any, info: PanInfo) => {
-    // Y drag close
-    if (info.offset.y > 60 && info.velocity.y > 20) {
+    // Y drag close (only attached to drag handle now)
+    if (info.offset.y > 40 && info.velocity.y > 10) {
       onClose()
-      return
-    }
-    // X drag change plant
-    const threshold = 40
-    if (info.offset.x > threshold && info.velocity.x > -20) {
-      setDirection(-1)
-      const newIdx = (internalCurrentIndex - 1 + plants.length) % plants.length
-      setInternalCurrentIndex(newIdx)
-      onChangeIndex?.(newIdx)
-    } else if (info.offset.x < -threshold && info.velocity.x < 20) {
-      setDirection(1)
-      const newIdx = (internalCurrentIndex + 1) % plants.length
-      setInternalCurrentIndex(newIdx)
-      onChangeIndex?.(newIdx)
     }
   }
 
@@ -288,52 +269,37 @@ export default function PlantDetails({ plant: initialPlant, onClose, onChangeInd
          )}
       </AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 h-[100dvh] overflow-x-hidden"
+        className="fixed inset-0 z-50 h-[100dvh]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
       {/* Background image */}
-      <AnimatePresence custom={direction}>
-        <motion.div
-          key={plant.id}
-          custom={direction}
-          className="absolute inset-0"
-          initial={(dir) => ({ opacity: 0 })}
-          animate={{ opacity: 1 }}
-          exit={(dir) => ({ opacity: 0 })}
-          transition={{ duration: 0.3 }}
-        >
-          <Image
-            src={plant.backgroundImage}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
-        </motion.div>
-      </AnimatePresence>
+      <motion.div
+        className="absolute inset-0"
+        initial={{ scale: 1.1, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 1.1, opacity: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Image
+          src={plant.backgroundImage}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/70" />
+      </motion.div>
 
       {/* Base interactive backdrop (Intercepts all clicks) */}
       <div className="absolute inset-0 z-0 cursor-pointer" onClick={onClose} />
 
       {/* Scrollable content layer */}
       <div 
-        className="absolute inset-0 overflow-y-auto overflow-x-hidden no-scrollbar flex justify-center z-10 pointer-events-none"
+        className="absolute inset-0 overflow-y-auto no-scrollbar flex justify-center z-10 pointer-events-none"
       >
-        <AnimatePresence custom={direction} mode="wait">
-          <motion.div 
-            key={plant.id}
-            custom={direction}
-            variants={{
-              enter: (dir) => ({ x: dir > 0 ? 50 : -50, opacity: 0 }),
-              center: { x: 0, opacity: 1 },
-              exit: (dir) => ({ x: dir > 0 ? -50 : 50, opacity: 0 }),
-            }}
-            initial="enter" animate="center" exit="exit" transition={{ duration: 0.2 }}
-            className="flex min-h-full flex-col w-full max-w-[480px] cursor-default"
-          >
+        <div className="flex min-h-full flex-col w-full max-w-[480px] cursor-default">
 
           {/* ── Close button ── fixed square circle */}
           <motion.button
@@ -350,12 +316,8 @@ export default function PlantDetails({ plant: initialPlant, onClose, onChangeInd
 
           {/* ── Hero: empty space passes clicks through to base backdrop ── */}
           <motion.div
-            className="flex items-center justify-center pt-14 pb-2 pointer-events-auto cursor-grab active:cursor-grabbing"
-            style={{ height: '50vh', minHeight: 300, touchAction: 'pan-y' }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.15}
-            onDragEnd={handleDragEnd}
+            className="flex items-center justify-center pt-14 pb-2"
+            style={{ height: '50vh', minHeight: 300 }}
           >
             <motion.div
               layoutId={`plant-image-${plant.id}`}
@@ -382,16 +344,17 @@ export default function PlantDetails({ plant: initialPlant, onClose, onChangeInd
             exit={{ y: 80, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300, delay: 0.1 }}
             onClick={(e) => e.stopPropagation()}
-            drag
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3, left: 0.15, right: 0.15 }}
-            onDragEnd={handleDragEnd}
           >
             {/* Drag handle */}
-            <div className="flex justify-center mb-5 cursor-grab active:cursor-grabbing">
+            <motion.div 
+              className="flex justify-center mb-5 pb-4 -mx-5 -mt-6 pt-6 cursor-grab active:cursor-grabbing"
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.5 }}
+              onDragEnd={handleDragEnd}
+            >
               <div className="w-10 h-1 rounded-full bg-white/20" />
-            </div>
+            </motion.div>
 
             {/* Plant name + description */}
             <motion.div
@@ -519,8 +482,7 @@ export default function PlantDetails({ plant: initialPlant, onClose, onChangeInd
               </motion.button>
                </div>
             </motion.div>
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </div>
     </motion.div>
     </>
