@@ -174,6 +174,14 @@ function NotificationSettings() {
   const timeStr = notifications.time || '09:00'
   const [hr, min] = timeStr.split(':')
 
+  const handleToggleEnable = async () => {
+    const next = !notifications.enabled
+    if (next && 'Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission()
+    }
+    updateNotifications({ enabled: next })
+  }
+
   const handleTestNotification = async () => {
     if (!('Notification' in window)) {
         return alert('המכשיר או הדפדפן להפעיל התראות. נסה דרך האפליקציה המותקנת (PWA).')
@@ -216,11 +224,18 @@ function NotificationSettings() {
       </div>
 
       <div className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-white/5 p-4">
+         {/* Permission warning */}
+         {typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'denied' && (
+           <div className="flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 px-3 py-2">
+             <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0" />
+             <span className="text-xs text-red-400 leading-relaxed">ההתראות חסומות בהגדרות הדפדפן/מכשיר. יש לאפשר אותן ידנית.</span>
+           </div>
+         )}
          {/* Toggle */}
          <div className="flex items-center justify-between">
            <span className="text-sm font-semibold text-white/90">הפעל התראות השקיה</span>
-           <button 
-             onClick={() => updateNotifications({ enabled: !notifications.enabled })}
+           <button
+             onClick={handleToggleEnable}
              className={`relative h-6 w-11 rounded-full transition-colors ${notifications.enabled ? 'bg-emerald-500' : 'bg-white/20'}`}
            >
              <motion.div 

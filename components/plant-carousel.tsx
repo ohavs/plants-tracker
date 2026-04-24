@@ -6,6 +6,7 @@ import { motion, AnimatePresence, PanInfo } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Settings, Droplets, X } from 'lucide-react'
 import { useImagePreloader } from '@/hooks/use-image-preloader'
 import { usePlantStore } from '@/hooks/use-plant-store'
+import { useNotificationScheduler } from '@/hooks/use-notification-scheduler'
 import PlantDetails from './plant-details'
 import PlantSettings from './plant-settings'
 import type { Plant } from '@/lib/plants-data'
@@ -20,6 +21,7 @@ export default function PlantCarousel() {
   const [universalWateredSuccess, setUniversalWateredSuccess] = useState(false)
   
   useImagePreloader()
+  useNotificationScheduler()
 
   const currentPlant = plants[currentIndex]
   const prevPlant = plants[(currentIndex - 1 + plants.length) % plants.length]
