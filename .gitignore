@@ -14,4 +14,4 @@ next.user-config.*
 node_modules
 .next/
 out/
-.DS_Store
+.DS_Storefirebase-debug.log
