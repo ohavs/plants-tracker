@@ -188,8 +188,13 @@ export default function PlantCarousel() {
                   className="absolute flex flex-col items-center"
                 >
                   <h1 className="text-center text-4xl sm:text-5xl font-bold text-white tracking-tight drop-shadow-lg">
-                    {currentPlant.name}
+                    {currentPlant.nickname || currentPlant.name}
                   </h1>
+                  {currentPlant.nickname && (
+                    <p className="mt-1 text-center text-sm text-white/50 font-medium tracking-wide">
+                      {currentPlant.name}
+                    </p>
+                  )}
                   <p className="mt-2 text-center text-sm text-white/60 max-w-[280px] font-light leading-relaxed">
                     {currentPlant.description}
                   </p>

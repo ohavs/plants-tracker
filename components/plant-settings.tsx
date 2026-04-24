@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronLeft, Plus, Leaf, Trash2, Check, Pencil, Bell, Send, Calendar, AlertTriangle } from 'lucide-react'
@@ -60,7 +60,7 @@ export default function PlantSettings({ onClose }: PlantSettingsProps) {
               )}
             </motion.button>
             <h2 className="text-xl font-bold text-white">
-              {livePlant ? livePlant.name : 'הגדרות'}
+              {livePlant ? (livePlant.nickname || livePlant.name) : 'הגדרות'}
             </h2>
           </div>
 
@@ -126,7 +126,10 @@ function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant)
             <Image src={plant.image} alt={plant.name} width={56} height={56} className="object-contain p-1 w-full h-full" />
           </div>
           <div className="flex-1 min-w-0 text-right">
-            <h3 className="text-base font-semibold text-white/90 truncate">{plant.name}</h3>
+            <h3 className="text-base font-semibold text-white/90 truncate">{plant.nickname || plant.name}</h3>
+            {plant.nickname && (
+              <p className="text-[11px] text-white/35 font-medium truncate">{plant.name}</p>
+            )}
             {plant.purchaseDate ? (
               <p className="text-xs text-white/35 font-light mt-0.5 flex items-center justify-end gap-1">
                 <Calendar className="h-2.5 w-2.5" />
@@ -484,8 +487,10 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
    Per-plant param editor
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function PlantParamEditor({ plant }: { plant: Plant }) {
-  const { updateParam, updateParamLabel, updateParamIcon, addParam, removeParam, clearWateringHistory, updatePurchaseDate } = usePlantStore()
+  const { updateParam, updateParamLabel, updateParamIcon, addParam, removeParam, clearWateringHistory, updatePurchaseDate, updateNickname } = usePlantStore()
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [nicknameValue, setNicknameValue] = useState(plant.nickname || '')
+  useEffect(() => { setNicknameValue(plant.nickname || '') }, [plant.id])
   const [showAddForm, setShowAddForm] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newValue, setNewValue] = useState('')
@@ -510,6 +515,30 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
           <Image src={plant.image} alt={plant.name} width={96} height={96} className="object-contain w-full h-full" sizes="96px" />
         </div>
         <p className="text-xs text-white/35 font-light text-center max-w-[240px]">{plant.description}</p>
+
+        {/* Nickname field */}
+        <div className="w-full mt-1 flex flex-col gap-1">
+          <span className="text-[10px] text-white/25 font-bold uppercase tracking-widest pr-1">כינוי</span>
+          <div className="flex gap-2 items-center rounded-2xl bg-white/5 border border-white/5 px-4 py-2.5">
+            <input
+              type="text"
+              value={nicknameValue}
+              onChange={(e) => setNicknameValue(e.target.value)}
+              onBlur={() => updateNickname(plant.id, nicknameValue.trim())}
+              placeholder={`כינוי עבור ${plant.name}...`}
+              className="flex-1 bg-transparent text-sm text-white placeholder:text-white/25 outline-none text-right"
+              dir="rtl"
+            />
+            {nicknameValue && (
+              <button
+                onClick={() => { setNicknameValue(''); updateNickname(plant.id, '') }}
+                className="text-white/30 hover:text-white/60 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Purchase date - custom styled picker */}
         <PurchaseDatePicker

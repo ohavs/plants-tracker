@@ -16,6 +16,7 @@ export interface WateringRecord {
 export interface Plant {
   id: string
   name: string
+  nickname?: string
   image: string
   backgroundImage: string
   accentColor: string

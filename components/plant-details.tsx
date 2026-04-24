@@ -363,7 +363,10 @@ export default function PlantDetails({ plant: initialPlant, onClose }: PlantDeta
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <h2 className="text-3xl font-bold text-white tracking-tight">{plant.name}</h2>
+              <h2 className="text-3xl font-bold text-white tracking-tight">{plant.nickname || plant.name}</h2>
+              {plant.nickname && (
+                <p className="mt-0.5 text-sm text-white/50 font-medium tracking-wide">{plant.name}</p>
+              )}
               <p className="mt-1.5 text-sm text-white/50 text-center max-w-[300px] font-light leading-relaxed">
                 {plant.description}
               </p>
