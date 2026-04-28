@@ -16,6 +16,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
       - name: Install app dependencies
         run: npm ci
 
@@ -39,4 +44,4 @@ jobs:
           NEXT_PUBLIC_FIREBASE_VAPID_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
 
       - name: Deploy to Firebase (hosting + functions)
-        run: npx firebase-tools deploy --only hosting,functions --project ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} --token ${{ secrets.FIREBASE_TOKEN }} --non-interactive
+        run: npx firebase-tools deploy --only hosting,functions --project ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }} --non-interactive
