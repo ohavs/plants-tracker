@@ -35,6 +35,7 @@ let globalNotifications = {
   enabled: false,
   time: '09:00',
   snoozeInterval: 'שעה',
+  fcmToken: null as string | null,
 }
 
 const listeners = new Set<() => void>()

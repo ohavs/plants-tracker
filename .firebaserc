@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "plants-tracker-b9eae"
+  },
   "targets": {},
   "etags": {}
 }

@@ -19,6 +19,10 @@ const pwaConfig = withPWA({
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   sw: 'sw.js',
+  exclude: [
+    /firebase-messaging-sw\.js$/,
+    /__env\.js$/,
+  ],
 });
 
 export default pwaConfig(nextConfig);

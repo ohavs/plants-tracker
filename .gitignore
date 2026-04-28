@@ -15,3 +15,6 @@ node_modules
 .next/
 out/
 .DS_Store
+
+# Generated Firebase SW config (contains env vars, created by scripts/generate-firebase-sw.mjs)
+public/__env.js
