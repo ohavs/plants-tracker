@@ -51,7 +51,7 @@ jobs:
 
       - name: Ensure Cloud Scheduler job exists
         run: |
-          SA_EMAIL=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          SA_EMAIL=$(jq -r '.client_email' "$GOOGLE_APPLICATION_CREDENTIALS")
           SERVICE_URL=$(gcloud run services describe sendplantnotifications \
             --region us-central1 \
             --project plants-tracker-b9eae \
