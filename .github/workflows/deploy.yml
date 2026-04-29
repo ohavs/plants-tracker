@@ -21,6 +21,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
 
+      - name: Enable Cloud Scheduler API
+        run: gcloud services enable cloudscheduler.googleapis.com --project plants-tracker-b9eae
+
       - name: Install app dependencies
         run: npm ci
 
@@ -45,3 +48,37 @@ jobs:
 
       - name: Deploy to Firebase (hosting + functions)
         run: npx firebase-tools deploy --only hosting,functions --non-interactive --force
+
+      - name: Ensure Cloud Scheduler job exists
+        run: |
+          SA_EMAIL=$(gcloud auth list --filter=status:ACTIVE --format='value(account)')
+          SERVICE_URL=$(gcloud run services describe sendplantnotifications \
+            --region us-central1 \
+            --project plants-tracker-b9eae \
+            --format 'value(status.url)')
+
+          # Ensure SA can invoke the Cloud Run service
+          gcloud run services add-iam-policy-binding sendplantnotifications \
+            --region us-central1 \
+            --project plants-tracker-b9eae \
+            --member "serviceAccount:${SA_EMAIL}" \
+            --role roles/run.invoker
+
+          # Create scheduler job, or update if it already exists
+          gcloud scheduler jobs create http sendPlantNotifications-job \
+            --schedule '*/5 * * * *' \
+            --uri "${SERVICE_URL}" \
+            --http-method POST \
+            --oidc-service-account-email "${SA_EMAIL}" \
+            --project plants-tracker-b9eae \
+            --location us-central1 \
+            --time-zone 'Asia/Jerusalem' \
+            2>/dev/null || \
+          gcloud scheduler jobs update http sendPlantNotifications-job \
+            --schedule '*/5 * * * *' \
+            --uri "${SERVICE_URL}" \
+            --http-method POST \
+            --oidc-service-account-email "${SA_EMAIL}" \
+            --project plants-tracker-b9eae \
+            --location us-central1 \
+            --time-zone 'Asia/Jerusalem'
