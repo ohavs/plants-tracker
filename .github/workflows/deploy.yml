@@ -51,34 +51,28 @@ jobs:
 
       - name: Ensure Cloud Scheduler job exists
         run: |
-          SA_EMAIL=$(jq -r '.client_email' "$GOOGLE_APPLICATION_CREDENTIALS")
           SERVICE_URL=$(gcloud run services describe sendplantnotifications \
             --region us-central1 \
             --project plants-tracker-b9eae \
             --format 'value(status.url)')
 
-          # Ensure SA can invoke the Cloud Run service
+          # Allow unauthenticated so Cloud Scheduler can invoke without OIDC
           gcloud run services add-iam-policy-binding sendplantnotifications \
             --region us-central1 \
             --project plants-tracker-b9eae \
-            --member "serviceAccount:${SA_EMAIL}" \
+            --member "allUsers" \
             --role roles/run.invoker
 
-          # Create scheduler job, or update if it already exists
+          # Recreate job cleanly with no auth token
+          gcloud scheduler jobs delete sendPlantNotifications-job \
+            --project plants-tracker-b9eae \
+            --location us-central1 \
+            --quiet 2>/dev/null || true
+
           gcloud scheduler jobs create http sendPlantNotifications-job \
             --schedule '*/5 * * * *' \
             --uri "${SERVICE_URL}" \
             --http-method POST \
-            --oidc-service-account-email "${SA_EMAIL}" \
-            --project plants-tracker-b9eae \
-            --location us-central1 \
-            --time-zone 'Asia/Jerusalem' \
-            2>/dev/null || \
-          gcloud scheduler jobs update http sendPlantNotifications-job \
-            --schedule '*/5 * * * *' \
-            --uri "${SERVICE_URL}" \
-            --http-method POST \
-            --oidc-service-account-email "${SA_EMAIL}" \
             --project plants-tracker-b9eae \
             --location us-central1 \
             --time-zone 'Asia/Jerusalem'
