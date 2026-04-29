@@ -49,30 +49,11 @@ jobs:
       - name: Deploy to Firebase (hosting + functions)
         run: npx firebase-tools deploy --only hosting,functions --non-interactive --force
 
-      - name: Ensure Cloud Scheduler job exists
+      - name: Remove duplicate manual scheduler job
         run: |
-          SERVICE_URL=$(gcloud run services describe sendplantnotifications \
-            --region us-central1 \
-            --project plants-tracker-b9eae \
-            --format 'value(status.url)')
-
-          # Allow unauthenticated so Cloud Scheduler can invoke without OIDC
-          gcloud run services add-iam-policy-binding sendplantnotifications \
-            --region us-central1 \
-            --project plants-tracker-b9eae \
-            --member "allUsers" \
-            --role roles/run.invoker
-
-          # Recreate job cleanly with no auth token
+          # Firebase auto-creates its own scheduler job on deploy.
+          # Delete the manually-created duplicate to avoid double notifications.
           gcloud scheduler jobs delete sendPlantNotifications-job \
             --project plants-tracker-b9eae \
             --location us-central1 \
             --quiet 2>/dev/null || true
-
-          gcloud scheduler jobs create http sendPlantNotifications-job \
-            --schedule '*/5 * * * *' \
-            --uri "${SERVICE_URL}" \
-            --http-method POST \
-            --project plants-tracker-b9eae \
-            --location us-central1 \
-            --time-zone 'Asia/Jerusalem'

@@ -164,6 +164,14 @@ export function usePlantStore() {
     updateFirebaseDoc(globalOverrides, nextHistory)
   }, [])
 
+  const addWateringRecordAll = useCallback((record: WateringRecord) => {
+    const nextHistory = { ...globalHistory }
+    for (const plant of basePlants) {
+      nextHistory[plant.id] = [record, ...(nextHistory[plant.id] || [])]
+    }
+    updateFirebaseDoc(globalOverrides, nextHistory)
+  }, [])
+
   const clearWateringHistory = useCallback((plantId: string) => {
     const nextHistory = { ...globalHistory, [plantId]: [] }
     updateFirebaseDoc(globalOverrides, nextHistory)
@@ -210,6 +218,7 @@ export function usePlantStore() {
     addParam,
     removeParam,
     addWateringRecord,
+    addWateringRecordAll,
     clearWateringHistory,
     updatePurchaseDate,
   }

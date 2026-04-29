@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence, PanInfo } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, Droplets, X } from 'lucide-react'
 import { useImagePreloader } from '@/hooks/use-image-preloader'
 import { usePlantStore } from '@/hooks/use-plant-store'
 import PlantDetails from './plant-details'
@@ -11,12 +11,14 @@ import PlantSettings from './plant-settings'
 import type { Plant } from '@/lib/plants-data'
 
 export default function PlantCarousel() {
-  const { plants } = usePlantStore()
+  const { plants, users, addWateringRecordAll } = usePlantStore()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [direction, setDirection] = useState(0)
-  
+  const [showUniversalUserSelect, setShowUniversalUserSelect] = useState(false)
+  const [universalWateredSuccess, setUniversalWateredSuccess] = useState(false)
+
   useImagePreloader()
 
   const currentPlant = plants[currentIndex]
@@ -42,6 +44,21 @@ export default function PlantCarousel() {
     setDirection(index > currentIndex ? 1 : -1)
     setCurrentIndex(index)
   }, [currentIndex])
+
+  const confirmUniversalWatering = useCallback((userName: string, userId: string) => {
+    setShowUniversalUserSelect(false)
+    addWateringRecordAll({ date: new Date().toISOString(), userId, userName })
+    setUniversalWateredSuccess(true)
+    setTimeout(() => setUniversalWateredSuccess(false), 2500)
+  }, [addWateringRecordAll])
+
+  const handleUniversalWaterClick = useCallback(() => {
+    if (users.length === 0) {
+      confirmUniversalWatering('אנונימי', 'guest')
+    } else {
+      setShowUniversalUserSelect(true)
+    }
+  }, [users, confirmUniversalWatering])
 
   const bgVariants = {
     enter: { opacity: 0, scale: 1.05 },
@@ -199,7 +216,26 @@ export default function PlantCarousel() {
           </div>
 
           {/* Bottom hints */}
-          <div className="flex flex-col items-center gap-2 pb-2 safe-area-bottom">
+          <div className="flex flex-col items-center gap-3 pb-2 safe-area-bottom">
+            {/* Universal watering button */}
+            <motion.button
+              onClick={handleUniversalWaterClick}
+              className="flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold backdrop-blur-md border transition-colors"
+              style={{
+                backgroundColor: universalWateredSuccess ? 'oklch(0.45 0.12 200 / 0.55)' : 'oklch(0.3 0.08 150 / 0.45)',
+                borderColor: universalWateredSuccess ? 'oklch(0.6 0.14 200 / 0.4)' : 'oklch(0.6 0.1 150 / 0.25)',
+              }}
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Droplets className="h-4 w-4 text-white/80" />
+              <span className="text-white/90">
+                {universalWateredSuccess ? 'כל הצמחים הושקו! 💧' : 'השקיתי את כולם'}
+              </span>
+            </motion.button>
+
             <motion.div
               className="flex items-center gap-3 text-white/45"
               initial={{ opacity: 0 }}
@@ -221,6 +257,56 @@ export default function PlantCarousel() {
           </div>
         </div>
       </div>
+
+      {/* Universal watering user select */}
+      <AnimatePresence>
+        {showUniversalUserSelect && (
+          <motion.div
+            className="fixed inset-0 z-[80] flex flex-col items-center justify-center p-6 bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowUniversalUserSelect(false)}
+          >
+            <motion.div
+              className="w-full max-w-[320px] bg-[#1c1c1e] rounded-3xl p-5 border border-white/10 shadow-2xl relative flex flex-col items-center"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowUniversalUserSelect(false)}
+                className="absolute top-4 right-4 text-white/50 bg-white/10 p-1 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="mt-3 mb-2 flex flex-col items-center gap-1">
+                <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center mb-1">
+                  <Droplets className="h-6 w-6 text-white/70" />
+                </div>
+                <h3 className="text-xl font-bold text-white">מי משקה עכשיו? 💧</h3>
+                <p className="text-xs text-white/40 text-center">ההשקיה תתווסף לכל הצמחים</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 w-full max-h-[50vh] overflow-y-auto no-scrollbar pt-4 pb-2 px-1" dir="rtl">
+                {users.map((u) => (
+                  <motion.button
+                    key={u.id}
+                    onClick={() => confirmUniversalWatering(u.name, u.id)}
+                    whileTap={{ scale: 0.95 }}
+                    className="rounded-2xl border border-white/10 bg-white/10 p-4 flex flex-col items-center justify-center gap-2"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                      <span className="text-lg">👤</span>
+                    </div>
+                    <span className="text-white font-semibold text-sm">{u.name}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Plant Details */}
       <AnimatePresence>
