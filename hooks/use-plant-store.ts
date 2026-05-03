@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { plants as basePlants, type Plant, type PlantParam, type WateringRecord } from '@/lib/plants-data'
 import { db } from '@/lib/firebase'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { registerFCMToken } from '@/lib/fcm'
 
 export type AppUser = {
   id: string
@@ -40,6 +41,7 @@ let globalNotifications = {
 
 const listeners = new Set<() => void>()
 let isInitialized = false
+let autoRegisterAttempted = false
 
 function notifyAll() {
   listeners.forEach(l => l())
@@ -59,7 +61,22 @@ export function usePlantStore() {
         if (snap.exists()) {
           const data = snap.data()
           if (data.users) globalUsers = data.users
-          if (data.notifications) globalNotifications = { ...globalNotifications, ...data.notifications }
+          if (data.notifications) {
+            globalNotifications = { ...globalNotifications, ...data.notifications }
+
+            // If notifications are enabled but token was cleared (e.g. stale token), auto re-register
+            if (globalNotifications.enabled && !globalNotifications.fcmToken && !autoRegisterAttempted) {
+              autoRegisterAttempted = true
+              registerFCMToken().then(token => {
+                if (token) {
+                  globalNotifications = { ...globalNotifications, fcmToken: token }
+                  notifyAll()
+                  setDoc(doc(db, 'settings', 'general'), { notifications: { fcmToken: token } }, { mergeFields: ['notifications.fcmToken'] })
+                    .catch(e => console.error('[store] FCM auto-register error:', e))
+                }
+              })
+            }
+          }
         } else {
           globalUsers = []
         }
@@ -200,7 +217,10 @@ export function usePlantStore() {
   const updateNotifications = async (notifs: Partial<typeof globalNotifications>) => {
     globalNotifications = { ...globalNotifications, ...notifs }
     notifyAll()
-    await setDoc(doc(db, 'settings', 'general'), { notifications: globalNotifications }, { merge: true })
+    // mergeFields with dot-notation ensures server-managed fields (lastNotifiedAt, nextNotifyAt)
+    // are never overwritten, and works even if the document doesn't exist yet
+    const mergeFields = Object.keys(notifs).map(k => `notifications.${k}`)
+    await setDoc(doc(db, 'settings', 'general'), { notifications: notifs }, { mergeFields })
   }
 
   return {
