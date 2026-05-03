@@ -19,7 +19,10 @@ export const sendPlantNotifications = onSchedule(
   async () => {
     const settingsRef = db.doc('settings/general');
     const snap = await settingsRef.get();
-    if (!snap.exists) return;
+    if (!snap.exists) {
+      console.log('[sendPlantNotifications] settings/general doc not found, skipping');
+      return;
+    }
 
     const notifs = snap.data()?.notifications as {
       enabled?: boolean;
@@ -30,17 +33,25 @@ export const sendPlantNotifications = onSchedule(
       nextNotifyAt?: admin.firestore.Timestamp | null;
     } | undefined;
 
-    if (!notifs?.enabled || !notifs?.fcmToken) return;
+    if (!notifs?.enabled) {
+      return;
+    }
+    if (!notifs?.fcmToken) {
+      console.log('[sendPlantNotifications] notifications enabled but fcmToken is null — waiting for client to re-register');
+      return;
+    }
 
     const now = new Date();
     const nowMs = now.getTime();
     const currentHHMM = getIsraelHHMM(now);
 
     let shouldSend = false;
+    let reason = '';
 
     // Snooze: nextNotifyAt has passed
     if (notifs.nextNotifyAt && nowMs >= notifs.nextNotifyAt.toMillis()) {
       shouldSend = true;
+      reason = `snooze (nextNotifyAt was ${new Date(notifs.nextNotifyAt.toMillis()).toISOString()})`;
     }
 
     // Daily scheduled time matches and we haven't sent in the last 10 minutes
@@ -48,10 +59,13 @@ export const sendPlantNotifications = onSchedule(
       const lastMs = notifs.lastNotifiedAt?.toMillis() ?? 0;
       if (nowMs - lastMs > 10 * 60 * 1000) {
         shouldSend = true;
+        reason = `daily trigger at ${currentHHMM}`;
       }
     }
 
     if (!shouldSend) return;
+
+    console.log(`[sendPlantNotifications] sending notification — reason: ${reason}`);
 
     try {
       await admin.messaging().send({
@@ -68,6 +82,8 @@ export const sendPlantNotifications = onSchedule(
           fcmOptions: { link: '/' },
         },
       });
+
+      console.log('[sendPlantNotifications] FCM send succeeded');
 
       // Compute next snooze time
       let nextNotifyAt: admin.firestore.Timestamp | null = null;
@@ -89,8 +105,11 @@ export const sendPlantNotifications = onSchedule(
       });
     } catch (e: unknown) {
       const code = (e as { code?: string })?.code;
-      if (code === 'messaging/registration-token-not-registered') {
-        // Token is stale — clear it so the client re-registers on next open
+      const isStaleToken =
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token';
+      if (isStaleToken) {
+        console.log(`[sendPlantNotifications] stale/invalid token (${code}) — clearing fcmToken`);
         await settingsRef.update({ 'notifications.fcmToken': null });
       } else {
         console.error('[sendPlantNotifications] FCM send error:', e);
