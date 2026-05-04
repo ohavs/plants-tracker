@@ -13,14 +13,19 @@ function getIsraelHHMM(now: Date): string {
   }).format(now);
 }
 
-// Runs every 5 minutes and sends FCM push notifications when scheduled time is reached
+function getIsraelDateStr(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jerusalem',
+  }).format(date); // "YYYY-MM-DD"
+}
+
 export const sendPlantNotifications = onSchedule(
   { schedule: '*/5 * * * *', timeZone: 'Asia/Jerusalem' },
   async () => {
     const settingsRef = db.doc('settings/general');
     const snap = await settingsRef.get();
     if (!snap.exists) {
-      console.log('[sendPlantNotifications] settings/general doc not found, skipping');
+      console.log('[sendPlantNotifications] settings/general not found');
       return;
     }
 
@@ -33,17 +38,21 @@ export const sendPlantNotifications = onSchedule(
       nextNotifyAt?: admin.firestore.Timestamp | null;
     } | undefined;
 
-    if (!notifs?.enabled) {
-      return;
-    }
+    if (!notifs?.enabled) return;
     if (!notifs?.fcmToken) {
-      console.log('[sendPlantNotifications] notifications enabled but fcmToken is null — waiting for client to re-register');
+      console.log('[sendPlantNotifications] enabled but no fcmToken — waiting for client to re-register');
       return;
     }
 
     const now = new Date();
     const nowMs = now.getTime();
     const currentHHMM = getIsraelHHMM(now);
+    const todayStr = getIsraelDateStr(now);
+
+    // Dedup guard: if we already sent in the last 10 minutes, skip.
+    // This prevents double-sends when two scheduler jobs fire close together.
+    const lastMs = notifs.lastNotifiedAt?.toMillis() ?? 0;
+    if (nowMs - lastMs < 10 * 60 * 1000) return;
 
     let shouldSend = false;
     let reason = '';
@@ -51,21 +60,34 @@ export const sendPlantNotifications = onSchedule(
     // Snooze: nextNotifyAt has passed
     if (notifs.nextNotifyAt && nowMs >= notifs.nextNotifyAt.toMillis()) {
       shouldSend = true;
-      reason = `snooze (nextNotifyAt was ${new Date(notifs.nextNotifyAt.toMillis()).toISOString()})`;
+      reason = `snooze (nextNotifyAt=${new Date(notifs.nextNotifyAt.toMillis()).toISOString()})`;
     }
 
-    // Daily scheduled time matches and we haven't sent in the last 10 minutes
+    // Daily scheduled time matches
     if (!shouldSend && currentHHMM === notifs.time) {
-      const lastMs = notifs.lastNotifiedAt?.toMillis() ?? 0;
-      if (nowMs - lastMs > 10 * 60 * 1000) {
-        shouldSend = true;
-        reason = `daily trigger at ${currentHHMM}`;
-      }
+      shouldSend = true;
+      reason = `daily trigger at ${currentHHMM}`;
     }
 
     if (!shouldSend) return;
 
-    console.log(`[sendPlantNotifications] sending notification — reason: ${reason}`);
+    // Skip if plants were already watered today (Israel time)
+    const plantsSnap = await db.doc('appData/plants').get();
+    if (plantsSnap.exists) {
+      const history = (plantsSnap.data()?.history ?? {}) as Record<string, Array<{ date?: string }>>;
+      const wateredToday = Object.values(history).some(records =>
+        records.some(r => r.date != null && getIsraelDateStr(new Date(r.date)) === todayStr)
+      );
+      if (wateredToday) {
+        console.log(`[sendPlantNotifications] plants watered today (${todayStr}) — clearing snooze`);
+        if (notifs.nextNotifyAt) {
+          await settingsRef.update({ 'notifications.nextNotifyAt': null });
+        }
+        return;
+      }
+    }
+
+    console.log(`[sendPlantNotifications] sending — reason: ${reason}`);
 
     try {
       await admin.messaging().send({
@@ -85,7 +107,6 @@ export const sendPlantNotifications = onSchedule(
 
       console.log('[sendPlantNotifications] FCM send succeeded');
 
-      // Compute next snooze time
       let nextNotifyAt: admin.firestore.Timestamp | null = null;
       const snooze = notifs.snoozeInterval;
       if (snooze && snooze !== 'ללא') {
@@ -93,10 +114,7 @@ export const sendPlantNotifications = onSchedule(
         if (snooze === 'שעה') offsetMs = 60 * 60 * 1000;
         else if (snooze === 'שלוש שעות') offsetMs = 3 * 60 * 60 * 1000;
         else if (snooze === 'יום למחרת') offsetMs = 24 * 60 * 60 * 1000;
-
-        if (offsetMs > 0) {
-          nextNotifyAt = admin.firestore.Timestamp.fromMillis(nowMs + offsetMs);
-        }
+        if (offsetMs > 0) nextNotifyAt = admin.firestore.Timestamp.fromMillis(nowMs + offsetMs);
       }
 
       await settingsRef.update({
@@ -109,7 +127,7 @@ export const sendPlantNotifications = onSchedule(
         code === 'messaging/registration-token-not-registered' ||
         code === 'messaging/invalid-registration-token';
       if (isStaleToken) {
-        console.log(`[sendPlantNotifications] stale/invalid token (${code}) — clearing fcmToken`);
+        console.log(`[sendPlantNotifications] stale token (${code}) — clearing fcmToken`);
         await settingsRef.update({ 'notifications.fcmToken': null });
       } else {
         console.error('[sendPlantNotifications] FCM send error:', e);
