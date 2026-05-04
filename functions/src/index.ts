@@ -13,10 +13,18 @@ function getIsraelHHMM(now: Date): string {
   }).format(now);
 }
 
+// Returns "YYYY-MM-DD" in Israel timezone without relying on locale formatting
 function getIsraelDateStr(date: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Jerusalem',
-  }).format(date); // "YYYY-MM-DD"
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const y = parts.find(p => p.type === 'year')?.value ?? '';
+  const m = parts.find(p => p.type === 'month')?.value ?? '';
+  const d = parts.find(p => p.type === 'day')?.value ?? '';
+  return `${y}-${m}-${d}`;
 }
 
 export const sendPlantNotifications = onSchedule(
@@ -38,9 +46,12 @@ export const sendPlantNotifications = onSchedule(
       nextNotifyAt?: admin.firestore.Timestamp | null;
     } | undefined;
 
-    if (!notifs?.enabled) return;
+    if (!notifs?.enabled) {
+      console.log('[sendPlantNotifications] notifications disabled');
+      return;
+    }
     if (!notifs?.fcmToken) {
-      console.log('[sendPlantNotifications] enabled but no fcmToken — waiting for client to re-register');
+      console.log('[sendPlantNotifications] no fcmToken — waiting for client to re-register');
       return;
     }
 
@@ -49,10 +60,14 @@ export const sendPlantNotifications = onSchedule(
     const currentHHMM = getIsraelHHMM(now);
     const todayStr = getIsraelDateStr(now);
 
-    // Dedup guard: if we already sent in the last 10 minutes, skip.
-    // This prevents double-sends when two scheduler jobs fire close together.
     const lastMs = notifs.lastNotifiedAt?.toMillis() ?? 0;
-    if (nowMs - lastMs < 10 * 60 * 1000) return;
+    const minsSinceLast = Math.round((nowMs - lastMs) / 60000);
+
+    // Dedup guard: skip if sent in the last 10 minutes (handles two scheduler jobs firing close together)
+    if (nowMs - lastMs < 10 * 60 * 1000) {
+      console.log(`[sendPlantNotifications] dedup: sent ${minsSinceLast}m ago, skipping`);
+      return;
+    }
 
     let shouldSend = false;
     let reason = '';
@@ -69,17 +84,26 @@ export const sendPlantNotifications = onSchedule(
       reason = `daily trigger at ${currentHHMM}`;
     }
 
+    console.log(`[sendPlantNotifications] time=${currentHHMM} scheduledTime=${notifs.time} nextNotifyAt=${notifs.nextNotifyAt?.toDate().toISOString() ?? 'null'} lastSent=${minsSinceLast}m ago shouldSend=${shouldSend}`);
+
     if (!shouldSend) return;
 
     // Skip if plants were already watered today (Israel time)
     const plantsSnap = await db.doc('appData/plants').get();
     if (plantsSnap.exists) {
-      const history = (plantsSnap.data()?.history ?? {}) as Record<string, Array<{ date?: string }>>;
-      const wateredToday = Object.values(history).some(records =>
-        records.some(r => r.date != null && getIsraelDateStr(new Date(r.date)) === todayStr)
-      );
-      if (wateredToday) {
-        console.log(`[sendPlantNotifications] plants watered today (${todayStr}) — clearing snooze`);
+      const history = (plantsSnap.data()?.history ?? {}) as Record<string, unknown>;
+      let wateredTodayPlant: string | null = null;
+
+      for (const [plantId, records] of Object.entries(history)) {
+        if (!Array.isArray(records)) continue;
+        const found = (records as Array<{ date?: string }>).some(
+          r => typeof r.date === 'string' && getIsraelDateStr(new Date(r.date)) === todayStr
+        );
+        if (found) { wateredTodayPlant = plantId; break; }
+      }
+
+      if (wateredTodayPlant !== null) {
+        console.log(`[sendPlantNotifications] watered today (${todayStr}), first match: ${wateredTodayPlant} — clearing snooze`);
         if (notifs.nextNotifyAt) {
           await settingsRef.update({ 'notifications.nextNotifyAt': null });
         }
