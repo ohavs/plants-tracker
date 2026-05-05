@@ -84,7 +84,17 @@ export const sendPlantNotifications = onSchedule(
       reason = `daily trigger at ${currentHHMM}`;
     }
 
-    console.log(`[sendPlantNotifications] time=${currentHHMM} scheduledTime=${notifs.time} nextNotifyAt=${notifs.nextNotifyAt?.toDate().toISOString() ?? 'null'} lastSent=${minsSinceLast}m ago shouldSend=${shouldSend}`);
+    // Catchup: no snooze pending and haven't notified yet today — fire immediately
+    // Handles the case where nextNotifyAt was cleared and scheduled time already passed
+    if (!shouldSend && !notifs.nextNotifyAt) {
+      const lastDateStr = notifs.lastNotifiedAt ? getIsraelDateStr(notifs.lastNotifiedAt.toDate()) : '';
+      if (lastDateStr !== todayStr) {
+        shouldSend = true;
+        reason = `catchup (last notified: ${lastDateStr || 'never'}, today: ${todayStr})`;
+      }
+    }
+
+    console.log(`[sendPlantNotifications] time=${currentHHMM} scheduledTime=${notifs.time} nextNotifyAt=${notifs.nextNotifyAt?.toDate().toISOString() ?? 'null'} lastSent=${minsSinceLast}m ago shouldSend=${shouldSend} reason=${reason}`);
 
     if (!shouldSend) return;
 
@@ -103,10 +113,7 @@ export const sendPlantNotifications = onSchedule(
       }
 
       if (wateredTodayPlant !== null) {
-        console.log(`[sendPlantNotifications] watered today (${todayStr}), first match: ${wateredTodayPlant} — clearing snooze`);
-        if (notifs.nextNotifyAt) {
-          await settingsRef.update({ 'notifications.nextNotifyAt': null });
-        }
+        console.log(`[sendPlantNotifications] watered today (${todayStr}), first match: ${wateredTodayPlant} — skipping notification`);
         return;
       }
     }
