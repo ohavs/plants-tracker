@@ -63,7 +63,7 @@ export const sendPlantNotifications = onSchedule(
     const lastMs = notifs.lastNotifiedAt?.toMillis() ?? 0;
     const minsSinceLast = Math.round((nowMs - lastMs) / 60000);
 
-    // Dedup guard: skip if sent in the last 10 minutes (handles two scheduler jobs firing close together)
+    // Fast early exit: skip if sent in the last 10 minutes
     if (nowMs - lastMs < 10 * 60 * 1000) {
       console.log(`[sendPlantNotifications] dedup: sent ${minsSinceLast}m ago, skipping`);
       return;
@@ -72,20 +72,19 @@ export const sendPlantNotifications = onSchedule(
     let shouldSend = false;
     let reason = '';
 
-    // Snooze: nextNotifyAt has passed
+    // 1. Snooze: nextNotifyAt has passed
     if (notifs.nextNotifyAt && nowMs >= notifs.nextNotifyAt.toMillis()) {
       shouldSend = true;
       reason = `snooze (nextNotifyAt=${new Date(notifs.nextNotifyAt.toMillis()).toISOString()})`;
     }
 
-    // Daily scheduled time matches
+    // 2. Daily scheduled time matches
     if (!shouldSend && currentHHMM === notifs.time) {
       shouldSend = true;
       reason = `daily trigger at ${currentHHMM}`;
     }
 
-    // Catchup: no snooze pending and haven't notified yet today — fire immediately
-    // Handles the case where nextNotifyAt was cleared and scheduled time already passed
+    // 3. Catchup: no snooze pending and haven't notified yet today — fire immediately
     if (!shouldSend && !notifs.nextNotifyAt) {
       const lastDateStr = notifs.lastNotifiedAt ? getIsraelDateStr(notifs.lastNotifiedAt.toDate()) : '';
       if (lastDateStr !== todayStr) {
@@ -97,6 +96,29 @@ export const sendPlantNotifications = onSchedule(
     console.log(`[sendPlantNotifications] time=${currentHHMM} scheduledTime=${notifs.time} nextNotifyAt=${notifs.nextNotifyAt?.toDate().toISOString() ?? 'null'} lastSent=${minsSinceLast}m ago shouldSend=${shouldSend} reason=${reason}`);
 
     if (!shouldSend) return;
+
+    // Atomic claim: use a transaction so concurrent invocations can't both pass dedup.
+    // The winner writes nowMs as a temporary lastNotifiedAt; the loser sees it and exits.
+    let claimed = false;
+    try {
+      claimed = await db.runTransaction(async tx => {
+        const fresh = await tx.get(settingsRef);
+        const freshLastMs = fresh.data()?.notifications?.lastNotifiedAt?.toMillis() ?? 0;
+        if (nowMs - freshLastMs < 10 * 60 * 1000) return false;
+        tx.update(settingsRef, {
+          'notifications.lastNotifiedAt': admin.firestore.Timestamp.fromMillis(nowMs),
+        });
+        return true;
+      });
+    } catch (e) {
+      console.error('[sendPlantNotifications] claim transaction error:', e);
+      return;
+    }
+
+    if (!claimed) {
+      console.log('[sendPlantNotifications] dedup: concurrent instance already claimed this send');
+      return;
+    }
 
     // Skip if plants were already watered today (Israel time)
     const plantsSnap = await db.doc('appData/plants').get();
@@ -148,6 +170,7 @@ export const sendPlantNotifications = onSchedule(
         if (offsetMs > 0) nextNotifyAt = admin.firestore.Timestamp.fromMillis(nowMs + offsetMs);
       }
 
+      // Overwrite the temporary claim timestamp with the real server timestamp
       await settingsRef.update({
         'notifications.lastNotifiedAt': admin.firestore.FieldValue.serverTimestamp(),
         'notifications.nextNotifyAt': nextNotifyAt,
