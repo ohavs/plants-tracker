@@ -102,9 +102,9 @@ export default function PlantSettings({ onClose }: PlantSettingsProps) {
   )
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Plant list
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function PlantList({ plants, onSelect }: { plants: Plant[]; onSelect: (p: Plant) => void }) {
   return (
     <div className="px-5 pb-10 safe-area-bottom flex flex-col gap-3">
@@ -336,7 +336,10 @@ function NotificationSettings() {
                   ].map(opt => (
                     <button
                       key={opt.value}
-                      onClick={() => updateNotifications({ snoozeInterval: opt.value })}
+                      onClick={() => updateNotifications({
+                        snoozeInterval: opt.value,
+                        ...(opt.value === 'ללא' ? { nextNotifyAt: null } : {}),
+                      })}
                       className={`snap-center flex-shrink-0 rounded-2xl px-4 py-2 text-sm font-medium transition-all ${notifications.snoozeInterval === opt.value ? 'scale-105 bg-white text-[#121212] shadow-lg' : 'bg-white/10 text-white/50 hover:bg-white/15'}`}
                     >
                       {opt.label}
@@ -406,9 +409,9 @@ function UsersManager() {
   )
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Custom purchase date picker
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; onChange: (d: string) => void; accentColor: string }) {
   const [open, setOpen] = useState(false)
 
@@ -518,9 +521,9 @@ function PurchaseDatePicker({ value, onChange, accentColor }: { value: string; o
   )
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Per-plant param editor
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function PlantParamEditor({ plant }: { plant: Plant }) {
   const { updateParam, updateParamLabel, updateParamIcon, addParam, removeParam, clearWateringHistory, updatePurchaseDate } = usePlantStore()
   const [editingKey, setEditingKey] = useState<string | null>(null)
@@ -609,7 +612,7 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
 
             <input
               type="text"
-              placeholder="שם הפרמטר (לדוגמה: דשן)"
+              placeholder="שם הפרמטר (לדוגמא: דשן)"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 text-right"
@@ -617,7 +620,7 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
             />
             <input
               type="text"
-              placeholder="ערך (לדוגמה: פעם בחודש)"
+              placeholder="ערך (לדוגמא: פעם בחודש)"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-white/25 text-right"
@@ -733,9 +736,9 @@ function PlantParamEditor({ plant }: { plant: Plant }) {
   )
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Single editable param row
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 interface ParamRowProps {
   param: PlantParam
   accentColor: string

@@ -214,8 +214,11 @@ export function usePlantStore() {
     await setDoc(doc(db, 'settings', 'general'), { users: nextUsers }, { merge: true })
   }
 
-  const updateNotifications = async (notifs: Partial<typeof globalNotifications>) => {
-    globalNotifications = { ...globalNotifications, ...notifs }
+  const updateNotifications = async (
+    notifs: Partial<typeof globalNotifications> & { nextNotifyAt?: null }
+  ) => {
+    const { nextNotifyAt: _nna, ...localFields } = notifs
+    globalNotifications = { ...globalNotifications, ...localFields }
     notifyAll()
     // mergeFields with dot-notation ensures server-managed fields (lastNotifiedAt, nextNotifyAt)
     // are never overwritten, and works even if the document doesn't exist yet

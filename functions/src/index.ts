@@ -72,10 +72,18 @@ export const sendPlantNotifications = onSchedule(
     let shouldSend = false;
     let reason = '';
 
+    // If snooze is disabled, ignore any stale nextNotifyAt and clear it from Firestore.
+    // This handles the case where the user switched from an active snooze to 'ללא' but
+    // nextNotifyAt was already pointing to a future (e.g. midnight) time.
+    const effectiveNextNotifyAt = notifs.snoozeInterval === 'ללא' ? null : (notifs.nextNotifyAt ?? null);
+    if (notifs.snoozeInterval === 'ללא' && notifs.nextNotifyAt) {
+      await settingsRef.update({ 'notifications.nextNotifyAt': null });
+    }
+
     // 1. Snooze: nextNotifyAt has passed
-    if (notifs.nextNotifyAt && nowMs >= notifs.nextNotifyAt.toMillis()) {
+    if (effectiveNextNotifyAt && nowMs >= effectiveNextNotifyAt.toMillis()) {
       shouldSend = true;
-      reason = `snooze (nextNotifyAt=${new Date(notifs.nextNotifyAt.toMillis()).toISOString()})`;
+      reason = `snooze (nextNotifyAt=${new Date(effectiveNextNotifyAt.toMillis()).toISOString()})`;
     }
 
     // 2. Daily scheduled time matches
@@ -85,7 +93,7 @@ export const sendPlantNotifications = onSchedule(
     }
 
     // 3. Catchup: no snooze pending, haven't notified yet today, and scheduled time has passed
-    if (!shouldSend && !notifs.nextNotifyAt && currentHHMM >= (notifs.time ?? '00:00')) {
+    if (!shouldSend && !effectiveNextNotifyAt && currentHHMM >= (notifs.time ?? '00:00')) {
       const lastDateStr = notifs.lastNotifiedAt ? getIsraelDateStr(notifs.lastNotifiedAt.toDate()) : '';
       if (lastDateStr !== todayStr) {
         shouldSend = true;
