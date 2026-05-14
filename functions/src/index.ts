@@ -135,6 +135,11 @@ export const sendPlantNotifications = onSchedule(
 
       if (wateredTodayPlant !== null) {
         console.log(`[sendPlantNotifications] watered today (${todayStr}), first match: ${wateredTodayPlant} — skipping notification`);
+        // Clear the claim and any pending snooze so future runs don't keep re-triggering
+        await settingsRef.update({
+          'notifications.lastNotifiedAt': admin.firestore.FieldValue.serverTimestamp(),
+          'notifications.nextNotifyAt': null,
+        });
         return;
       }
     }
