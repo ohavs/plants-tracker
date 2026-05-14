@@ -92,15 +92,6 @@ export const sendPlantNotifications = onSchedule(
       reason = `daily trigger at ${currentHHMM}`;
     }
 
-    // 3. Catchup: no snooze pending, haven't notified yet today, and scheduled time has passed
-    if (!shouldSend && !effectiveNextNotifyAt && currentHHMM >= (notifs.time ?? '00:00')) {
-      const lastDateStr = notifs.lastNotifiedAt ? getIsraelDateStr(notifs.lastNotifiedAt.toDate()) : '';
-      if (lastDateStr !== todayStr) {
-        shouldSend = true;
-        reason = `catchup (last notified: ${lastDateStr || 'never'}, today: ${todayStr})`;
-      }
-    }
-
     console.log(`[sendPlantNotifications] time=${currentHHMM} scheduledTime=${notifs.time} nextNotifyAt=${notifs.nextNotifyAt?.toDate().toISOString() ?? 'null'} lastSent=${minsSinceLast}m ago shouldSend=${shouldSend} reason=${reason}`);
 
     if (!shouldSend) return;
